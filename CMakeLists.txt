@@ -19,6 +19,8 @@ FetchContent_MakeAvailable(lace)
 
 find_package(Boost REQUIRED filesystem iostreams regex system random)
 
+include (cmake/gmp.cmake)
+
 # Main library target
 add_library(oink STATIC)
 add_library(oink::oink ALIAS oink)
@@ -34,7 +36,7 @@ set(OINK_HDRS
     include/oink/libpopcnt.h
 )
 
-target_compile_features(oink PUBLIC c_std_11 cxx_std_11)
+target_compile_features(oink PUBLIC c_std_11 cxx_std_20)
 
 target_compile_options(oink PRIVATE
     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
@@ -92,6 +94,7 @@ target_sources(oink
     src/zlkpp.cpp
     src/ptl.cpp
     src/dtl.cpp
+    src/fvi.cpp
     ${OINK_HDRS}
 )
 
@@ -109,7 +112,7 @@ add_executable(solve)
 target_sources(solve PRIVATE src/tools/solve.cpp src/tools/getrss.c)
 set_target_properties(solve PROPERTIES OUTPUT_NAME oink)
 set_target_props(solve)
-target_link_libraries(solve Boost::iostreams Boost::random)
+target_link_libraries(solve Boost::iostreams Boost::random Boost::headers ${GMP_LIBRARIES})
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     option(OINK_BUILD_TOOLS "Build basic Oink tools" ON)
@@ -120,7 +123,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
         add_executable(test_solvers)
         target_sources(test_solvers PRIVATE test/test_solvers.cpp)
         set_target_props(test_solvers)
-        target_link_libraries(test_solvers Boost::iostreams Boost::filesystem Boost::random)
+        target_link_libraries(test_solvers Boost::iostreams Boost::filesystem Boost::random Boost::headers ${GMP_LIBRARIES})
     endif()
 
     if(OINK_BUILD_EXTRA_TOOLS)
@@ -135,7 +138,8 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 
         add_executable(simple src/tools/simple.cpp)
         set_target_props(simple)
-
+        target_link_libraries(simple Boost::headers ${GMP_LIBRARIES})
+        
         add_executable(rngame src/tools/rngame.cpp)
         set_target_props(rngame)
 

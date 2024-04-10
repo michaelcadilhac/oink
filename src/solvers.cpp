@@ -38,6 +38,7 @@
 #include "zlkq.hpp"
 #include "ptl.hpp"
 #include "dtl.hpp"
+#include "fvi.hpp"
 
 namespace pg {
 
@@ -74,6 +75,7 @@ Solvers::Solvers()
     add("rtl", "recursive tangle learning", 0, [] (Oink* oink, Game* game) { return new RTLSolver(oink, game); });
     add("ortl", "one-sided recursive tangle learning", 0, [] (Oink* oink, Game* game) { return new ORTLSolver(oink, game); });
     add("tl", "tangle learning", 0, [] (Oink* oink, Game* game) { return new TLSolver(oink, game); });
+    add("fvi", "fast value iteration", 0, [] (Oink* oink, Game* game) { return new FVISolver(oink, game); });
 }       
 
 void
