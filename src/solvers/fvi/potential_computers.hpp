@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fvi/energy_game.hpp"
+#include "solvers/fvi/energy_game.hpp"
 
 namespace potential_computers {
   template <typename W>
@@ -39,5 +39,5 @@ namespace potential_computers {
   }
 }
 
-#include <fvi/potential_computers/vi.hpp>
-#include <fvi/potential_computers/fvi.hpp>
+#include "solvers/fvi/potential_computers/vi.hpp"
+#include "solvers/fvi/potential_computers/fvi.hpp"

@@ -28,13 +28,13 @@
 
 #include "oink/oink.hpp"
 
-#include "fvi.hpp"
+#include "solvers/fvi.hpp"
 
-#include "fvi/energy_game.hpp"
-#include "fvi/lazy.hpp"
-#include "fvi/potential_computers.hpp"
-#include "fvi/stats.hpp"
-#include "fvi/weights.hpp"
+#include "solvers/fvi/energy_game.hpp"
+#include "solvers/fvi/lazy.hpp"
+#include "solvers/fvi/potential_computers.hpp"
+#include "solvers/fvi/stats.hpp"
+#include "solvers/fvi/weights.hpp"
 
 
 using gmp_weight_t    = lazy_number<boost::multiprecision::mpz_int>;
@@ -44,7 +44,7 @@ using map_weight_t    = lazy_number<omap<int32_t, int32_t>>;
 using weight_t    = gmp_weight_t;
 
 namespace pg {
-  FVISolver::FVISolver (Oink* oink, Game* game) : Solver (oink, game) {
+  FVISolver::FVISolver (Oink& oink, Game& game) : Solver (oink, game) {
   }
 
   FVISolver::~FVISolver() {
@@ -62,7 +62,7 @@ namespace pg {
 
 
     auto time_conv_beg = high_resolution_clock::now();
-    auto nrg_game = energy_game<weight_t> (*this->game, logger, trace);
+    auto nrg_game = energy_game<weight_t> (this->game, logger, trace);
     auto time_sol_beg = high_resolution_clock::now();
     std::cout << "conversion: " << duration_cast<duration<double>>(time_sol_beg - time_conv_beg).count() << "\n";
 
@@ -90,16 +90,16 @@ namespace pg {
 
     auto&& pot = nrg_game.get_potential ();
     for (auto&& v : nrg_game.vertices ()) {
-      if (game->solved[v]) continue;
+      if (game.isSolved (v)) continue;
       log ("vertex " << v << (nrg_game.is_max (v) ? " (max) " : " (min) "));
       log (" potential " << pot[v]);
       if (auto strat = potential_computer.strategy_for (v)) {
         log (" take (" << v << ", " << *strat << ")\n");
-        oink->solve (v, not nrg_game.is_max (v), *strat);
+        Solver::solve (v, not nrg_game.is_max (v), *strat);
       }
       else {
         log (" (losing)\n");
-        oink->solve (v, nrg_game.is_max (v), -1);
+        Solver::solve (v, nrg_game.is_max (v), -1);
       }
     }
 

@@ -17,13 +17,13 @@
 #ifndef FVI_HPP
 #define FVI_HPP
 
-#include "solver.hpp"
+#include "oink/solver.hpp"
 
 namespace pg {
 
   class FVISolver : public Solver {
     public:
-      FVISolver (Oink* oink, Game* game);
+      FVISolver (Oink& oink, Game& game);
       virtual ~FVISolver ();
       virtual void run ();
   };

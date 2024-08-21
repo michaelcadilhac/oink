@@ -1,8 +1,8 @@
 #pragma once
 
-#include "fvi/utils.hpp"
-#include "fvi/stats.hpp"
-#include "fvi/weights.hpp"
+#include "solvers/fvi/utils.hpp"
+#include "solvers/fvi/stats.hpp"
+#include "solvers/fvi/weights.hpp"
 
 ADD_TO_STATS (eg_reduce);
 ADD_TO_STATS (eg_pot_update);

@@ -18,6 +18,6 @@ template <typename T>
 T zero_weight (const T& t);
  */
 
-#include "fvi/weights/omap.hpp"
-#include "fvi/weights/gmp.hpp"
-#include "fvi/weights/ovec.hpp"
+#include "solvers/fvi/weights/omap.hpp"
+#include "solvers/fvi/weights/gmp.hpp"
+#include "solvers/fvi/weights/ovec.hpp"
