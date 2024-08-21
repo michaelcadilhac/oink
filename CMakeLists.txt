@@ -25,6 +25,8 @@ find_package(Boost REQUIRED COMPONENTS filesystem iostreams regex system random 
 
 include (cmake/gmp.cmake)
 
+include (cmake/gmp.cmake)
+
 # Main library target
 add_library(oink STATIC)
 add_library(oink::oink ALIAS oink)
