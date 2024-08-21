@@ -14,9 +14,9 @@
 
 
 namespace pg {
-  DownsetsSolver::DownsetsSolver (Oink* oink, Game* game) :
+  DownsetsSolver::DownsetsSolver (Oink& oink, Game& game) :
     Solver (oink, game),
-    pgame (*game),
+    pgame (game),
     dim ((pgame.priority (pgame.nodecount () - 1) + 2) / 2),
     all_verts {(vertex_t) 0, (vertex_t) pgame.nodecount ()},
     max_vec (dim) {
@@ -132,7 +132,7 @@ namespace pg {
     };
 
     for (auto vert : all_verts) {
-      if (pgame.solved[vert]) { /*std::cout << pv (vert) << "already solved.\n";*/ continue; }
+      if (pgame.isSolved (vert)) { /*std::cout << pv (vert) << "already solved.\n";*/ continue; }
       if (cur[vert].contains (all_zeroes)) {
         // even wins
         if (pgame.owner (vert) == 0) {
@@ -148,11 +148,11 @@ namespace pg {
               }
           }
           //std::cout << pv (vert) << " wins going " << strat << "\n";
-          oink->solve (vert, 0, strat);
+          Solver::solve (vert, 0, strat);
         }
         else {
           //std::cout << pv (vert) << " loses\n";
-          oink->solve (vert, 0, -1);
+          Solver::solve (vert, 0, -1);
         }
       }
     }
@@ -168,7 +168,7 @@ namespace pg {
     }
 
     for (auto vert : all_verts) {
-      if (pgame.solved[vert]) continue;
+      if (pgame.isSolved (vert)) continue;
       if (cur[vert].contains (all_zeroes)) {
         // odd wins
         if (pgame.owner (vert) == 1) {
@@ -184,11 +184,11 @@ namespace pg {
               }
           }
           //std::cout << pv (vert) << " wins going " << strat << "\n";
-          oink->solve (vert, 1, strat);
+          Solver::solve (vert, 1, strat);
         }
         else {
           //std::cout << pv (vert) << " loses\n";
-          oink->solve (vert, 1, -1);
+          Solver::solve (vert, 1, -1);
         }
       }
     }

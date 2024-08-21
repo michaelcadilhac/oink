@@ -1,6 +1,6 @@
 #pragma once
 #include <ranges>
-#include "solver.hpp"
+#include "oink/solver.hpp"
 
 #include "posets/downsets.hh"
 #include "posets/vectors.hh"
@@ -13,7 +13,7 @@ namespace pg {
       using vector_t = posets::vectors::vector_backed<weight_t>;
       using downset_t = posets::downsets::kdtree_backed<vector_t>;
     public:
-      DownsetsSolver (Oink* oink, Game* game);
+      DownsetsSolver (Oink& oink, Game& game);
       virtual ~DownsetsSolver ();
       virtual void run ();
 
