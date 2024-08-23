@@ -32,6 +32,7 @@ W priority_to_weight (const priority_t& prio,
                       const pg::Game& pgame,
                       bool swap)
 {
+  // TODO Clean this nonsense.
   ssize_t t = pgame.nodecount ();
   ssize_t sbase = 1;
   while (t != 0) {

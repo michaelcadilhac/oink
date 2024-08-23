@@ -113,8 +113,6 @@ class energy_game {
       }
     }
 
-  private:
-    size_t last_transition = 0;
   public:
     void add_transition (const vertex_t& v1, const W& w, const vertex_t& v2) {
       W tw = W::copy (w);

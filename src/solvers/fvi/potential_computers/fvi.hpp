@@ -172,7 +172,7 @@ namespace potential_computers {
             auto xfirst = W::steal (const_cast<wv_t&> (phase2_pq.top ()).first);
             phase2_pq.pop ();
             if (F[xsecond]) continue;
-            potential[xsecond].copy_or_steal (xfirst);
+            potential[xsecond] = W::steal_or_copy (xfirst);
             F[xsecond] = true;
             log ("Putting " << xsecond << " in F with pot " << potential[xsecond] << std::endl);
             decrease_preds (xsecond);

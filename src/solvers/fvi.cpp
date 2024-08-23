@@ -31,7 +31,7 @@
 #include "solvers/fvi.hpp"
 
 #include "solvers/fvi/energy_game.hpp"
-#include "solvers/fvi/lazy.hpp"
+#include "solvers/fvi/movable_number.hpp"
 #include "solvers/fvi/potential_computers.hpp"
 #include "solvers/fvi/stats.hpp"
 #include "solvers/fvi/weights.hpp"
@@ -48,7 +48,7 @@ namespace pg {
   }
 
   FVISolver::~FVISolver() {
-    assert (lazy_maker<weight_t::number_t>::used == 0);
+    assert (lazy_maker<weight_t::number_t>::empty ());
   }
 
   void FVISolver::run() {
