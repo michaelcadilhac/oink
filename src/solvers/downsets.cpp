@@ -33,8 +33,7 @@ namespace pg {
       if (prio % 2 == (not swap))
         ++maxes[prio / 2];
     }
-    for (size_t i = 0; i < dim; ++i)
-      max_vec[i] = maxes[i];
+    max_vec = vector_t (maxes);
   }
 
   void DownsetsSolver::init_downsets (bool swap) {
@@ -62,12 +61,13 @@ namespace pg {
 
       auto out = downset_t (max_vec.copy ());
       std::vector<vector_t> bwds;
+      std::vector<weight_t> bwdvec (max_vec.size ());
       bwds.reserve (nbwds);
 
       auto prio = pgame.priority (vert);
       for (auto neigh = outs (vert); *neigh != -1; ++neigh) {
         for (const auto& vec : cur[*neigh]) {
-          auto bwdvec = vec.copy ();
+          vec.to_vector (bwdvec);
           // auto prio = pgame.priority (*neigh);
           if (prio % 2 == (not swap)) {
             if (bwdvec[prio / 2] >= 0)
@@ -78,7 +78,7 @@ namespace pg {
               if (bwdvec[j] >= 0)
                 bwdvec[j] = maxes[j];
           }
-          bwds.push_back (std::move (bwdvec));
+          bwds.push_back (vector_t (bwdvec));
         }
         if (pgame.owner (vert) == (not swap)) {
           out.intersect_with (downset_t (std::move (bwds)));
@@ -119,10 +119,7 @@ namespace pg {
        std::cout << "-----------------\n";*/
     }
 
-    vector_t all_zeroes (dim);
-
-    for (size_t i = 0; i < dim; ++i)
-      all_zeroes[i] = 0;
+    vector_t all_zeroes { std::vector<weight_t> (dim) };
 
     auto cmp = [this] (const vector_t& l, const vector_t& r, ssize_t idx) {
       for (ssize_t j = dim - 1; j >= idx; --j)
