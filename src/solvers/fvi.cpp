@@ -1,19 +1,3 @@
-/*
- * Copyright 2017-2018 Tom van Dijk, Johannes Kepler University Linz
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include <algorithm>
 #include <iomanip>
 #include <ranges>
@@ -37,19 +21,16 @@
 #include "solvers/fvi/weights.hpp"
 
 
-using gmp_weight_t    = lazy_number<boost::multiprecision::mpz_int>;
-using vec_weight_t    = lazy_number<ovec<int32_t>>;
-using map_weight_t    = lazy_number<omap<int32_t, int32_t>>;
+using gmp_weight_t    = movable_number<boost::multiprecision::mpz_int>;
+using vec_weight_t    = movable_number<ovec<int32_t>>;
+using map_weight_t    = movable_number<omap<int32_t, int32_t>>;
 
 using weight_t    = gmp_weight_t;
 
 namespace pg {
-  FVISolver::FVISolver (Oink& oink, Game& game) : Solver (oink, game) {
-  }
+  FVISolver::FVISolver (Oink& oink, Game& game) : Solver (oink, game) { }
 
-  FVISolver::~FVISolver() {
-    assert (lazy_maker<weight_t::number_t>::empty ());
-  }
+  FVISolver::~FVISolver() { } // must be defined.
 
   void FVISolver::run() {
     using namespace std::chrono;
@@ -60,11 +41,12 @@ namespace pg {
     fvi_stats::pot_phase2 = 0;
     fvi_stats::pot_backtrack = 0;
 
+    using namespace std::literals; // enables literal suffixes, e.g. 24h, 1ms, 1s.
 
     auto time_conv_beg = high_resolution_clock::now();
     auto nrg_game = energy_game<weight_t> (this->game, logger, trace);
     auto time_sol_beg = high_resolution_clock::now();
-    std::cout << "conversion: " << duration_cast<duration<double>>(time_sol_beg - time_conv_beg).count() << "\n";
+    std::cout << "conversion: " << duration_cast<nanoseconds>(time_sol_beg - time_conv_beg) / 1ms << "\n";
 
     auto potential_computer = potential_computers::potential_fvi_alt (nrg_game, logger, trace);
 
@@ -78,7 +60,7 @@ namespace pg {
       log (nrg_game << std::endl);
     }
 
-    std::cout << "solving: " << duration_cast<duration<double>>(high_resolution_clock::now () - time_sol_beg).count() << "\n";
+    std::cout << "solving: " << duration_cast<nanoseconds>(high_resolution_clock::now () - time_sol_beg) / 1ms << "\n";
 
     /*
      La stratégie gagnante pour Max (depuis les sommets qui sont détectés comme

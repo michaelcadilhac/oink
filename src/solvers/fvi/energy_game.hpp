@@ -19,7 +19,7 @@ std::ostream& operator<< (std::ostream& os, const energy_game<W>& egame) {
        << "\", label=\"" << v << ",pot=" << pot[v] << "\"";
     if (egame.decided[v]) {
       os << ",bgcolor=" <<
-      ((pot[v] >= egame.get_infty ()) == egame.is_max (v)) ? "green" : "red";
+        ((pot[v] >= egame.get_infty ()) == egame.is_max (v)) ? "green" : "red";
     }
     os << "];" << std::endl;
     if (not egame.decided[v])

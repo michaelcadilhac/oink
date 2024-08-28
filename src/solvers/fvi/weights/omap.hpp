@@ -283,8 +283,8 @@ bool set_if_plus (OW& lhs, const OW& p1, const OW& p2, int condition) {
         copy_impl.template operator()<false, true, false> ();
       else if (P2 and itp2 != p2.map.end ())
         copy_impl.template operator()<false, false, true> ();
-        assert (itp1 == p1.map.end () and itp2 == p2.map.end ());
-        return true;
+      assert (itp1 == p1.map.end () and itp2 == p2.map.end ());
+      return true;
     }
     return false;
   };
