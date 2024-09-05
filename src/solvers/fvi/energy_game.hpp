@@ -7,10 +7,10 @@
 ADD_TO_STATS (eg_reduce);
 ADD_TO_STATS (eg_pot_update);
 
-template <typename W>
+template <MovableWeight W>
 class energy_game;
 
-template <typename W>
+template <MovableWeight W>
 std::ostream& operator<< (std::ostream& os, const energy_game<W>& egame) {
   auto&& pot = egame.get_potential ();
   os << "digraph G {" << std::endl;
@@ -19,7 +19,7 @@ std::ostream& operator<< (std::ostream& os, const energy_game<W>& egame) {
        << "\", label=\"" << v << ",pot=" << pot[v] << "\"";
     if (egame.decided[v]) {
       os << ",bgcolor=" <<
-        ((pot[v] >= egame.get_infty ()) == egame.is_max (v)) ? "green" : "red";
+        (((pot[v] >= egame.get_infty ()) == egame.is_max (v)) ? "green" : "red");
     }
     os << "];" << std::endl;
     if (not egame.decided[v])
@@ -32,7 +32,7 @@ std::ostream& operator<< (std::ostream& os, const energy_game<W>& egame) {
   return os;
 }
 
-template <typename W>
+template <MovableWeight W>
 class energy_game {
     bool               changed = true;
     size_t             nverts, nedges;

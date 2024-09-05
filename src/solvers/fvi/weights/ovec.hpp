@@ -1,21 +1,5 @@
 #pragma once
 
-
-template <typename T>
-class ovec;
-
-
-template <typename T>
-std::ostream& operator<< (std::ostream& os, const ovec<T>& wt) {
-  os << "[";
-  priority_t prio = 0;
-  for (auto&& x : std::views::reverse (wt.vec))
-    os << " " << prio++ << "->" << x;
-  os << " ]";
-  return os;
-}
-
-
 template <typename T>
 class ovec {
     using vec_t = std::vector<T>;
@@ -86,67 +70,60 @@ class ovec {
       return ovec (std::move (othervec));
     }
 
-    friend bool set_if_plus_larger<> (ovec&, const ovec&, const ovec&);
+  private:
+    bool set_if_plus (const ovec& p1, const ovec& p2, bool larger) {
+      bool decided_it_is_sum = false;
 
-    friend ovec priority_to_weight<> (const priority_t&,
-                                      const pg::Game&,
-                                      bool swap);
+      assert (vec.size () == p1.vec.size () and p2.vec.size () == vec.size ());
 
-    friend ovec infinity_weight<> (const pg::Game&);
+      auto itlhs = vec.begin();
+      auto itp1 = p1.vec.begin();
+      auto itp2 = p2.vec.begin ();
 
-    friend ovec zero_weight<> (const ovec&);
-
-    friend std::ostream& operator<< <> (std::ostream& os, const ovec<T>& wt);
-};
-
-
-template <instantiation_of<ovec> OW>
-bool set_if_plus_larger (OW& lhs, const OW& p1, const OW& p2) {
-  static typename OW::vec_t vec;
-  vec.resize (p1.vec.size ());
-
-  bool gt = false;
-
-  assert (lhs.vec.size () == p1.vec.size () and p2.vec.size () == vec.size ());
-
-  auto itlhs = lhs.vec.begin();
-  auto itp1 = p1.vec.begin();
-  auto itp2 = p2.vec.begin ();
-  auto itout = vec.begin ();
-
-  for (; itlhs != lhs.vec.end(); ++itlhs, ++itp1, ++itp2, ++itout) {
-    auto tmp = *itp1 + *itp2;
-    if (not gt) {
-      auto eq = tmp <=> *itlhs;
-      if (eq < 0)
-        return false;
-      gt = (eq > 0);
+      for (; itlhs != vec.end(); ++itlhs, ++itp1, ++itp2) {
+        auto tmp = *itp1 + *itp2;
+        if (not decided_it_is_sum) {
+          auto eq = tmp <=> *itlhs;
+          if (larger ? (eq < 0) : (eq > 0))
+            return false;
+          decided_it_is_sum = larger ? (eq > 0) : (eq < 0);
+        }
+        if (decided_it_is_sum)
+          *itlhs = tmp;
+      }
+      return true;
     }
-    if (gt)
-      *itlhs = tmp;
-  }
-  return true;
-}
 
-template <instantiation_of<ovec> OW>
-OW priority_to_weight (const priority_t& prio,
-                            const pg::Game& pgame,
-                            bool swap) {
-  auto max_prio = pgame.priority (pgame.nodecount () - 1);
-  typename OW::vec_t vec (max_prio + 1);
-  vec[max_prio - prio] = (swap ^ (prio % 2)) ? -1 : 1;
-  return OW (std::move (vec));
-}
+  public:
+    bool set_if_plus_larger (const ovec& p1, const ovec& p2) { return set_if_plus (p1, p2, true); }
+    bool set_if_plus_smaller (const ovec& p1, const ovec& p2) { return set_if_plus (p1, p2, false); }
 
-template <instantiation_of<ovec> OW>
-OW infinity_weight (const pg::Game& pgame) {
-  auto max_prio = pgame.priority (pgame.nodecount () - 1);
-  typename OW::vec_t vec (max_prio + 1);
-  vec[0] = pgame.edgecount () + 1;
-  return OW (std::move (vec));
-}
+    static ovec priority_to_weight (const priority_t& prio,
+                                    const pg::Game& pgame,
+                                    bool swap) {
+      auto max_prio = pgame.priority (pgame.nodecount () - 1);
+      vec_t vec (max_prio + 1);
+      vec[max_prio - prio] = (swap ^ (prio % 2)) ? -1 : 1;
+      return std::move (vec);
+    }
 
-template <instantiation_of<ovec> OW>
-OW zero_weight (const OW& other) {
-  return OW (other.vec.size ()); // intialized to 0
-}
+    static ovec infinity_weight (const pg::Game& pgame) {
+      auto max_prio = pgame.priority (pgame.nodecount () - 1);
+      vec_t vec (max_prio + 1);
+      vec[0] = pgame.edgecount () + 1;
+      return std::move (vec);
+    }
+
+    static ovec zero_weight (const ovec& other) {
+      return other.vec.size (); // initialized to 0
+    }
+
+    std::ostream& print (std::ostream& os) const {
+      os << "[";
+      priority_t prio = 0;
+      for (auto&& x : std::views::reverse (vec))
+        os << " " << prio++ << "->" << x;
+      os << " ]";
+      return os;
+    }
+};

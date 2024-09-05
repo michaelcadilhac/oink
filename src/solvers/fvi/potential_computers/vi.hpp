@@ -4,6 +4,9 @@ namespace potential_computers {
   template <typename W>
   class potential_firstmax : public potential_computer<W> {
     public:
+      potential_firstmax (const energy_game<W>& game, logger_t& logger, int trace) :
+        potential_computer<W> (game, logger, trace) {}
+
       void compute () {
         auto& potential = this->potential;
         auto& game = this->game;

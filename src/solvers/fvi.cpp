@@ -14,18 +14,20 @@
 
 #include "solvers/fvi.hpp"
 
-#include "solvers/fvi/energy_game.hpp"
+#include "solvers/fvi/weights.hpp"
 #include "solvers/fvi/movable_number.hpp"
+
 #include "solvers/fvi/potential_computers.hpp"
 #include "solvers/fvi/stats.hpp"
-#include "solvers/fvi/weights.hpp"
+
+#include "solvers/fvi/energy_game.hpp"
 
 
-using gmp_weight_t    = movable_number<boost::multiprecision::mpz_int>;
+using gmp_weight_t    = movable_number<gmp>;
 using vec_weight_t    = movable_number<ovec<int32_t>>;
 using map_weight_t    = movable_number<omap<int32_t, int32_t>>;
 
-using weight_t    = gmp_weight_t;
+using weight_t    = vec_weight_t;
 
 namespace pg {
   FVISolver::FVISolver (Oink& oink, Game& game) : Solver (oink, game) { }
@@ -46,7 +48,8 @@ namespace pg {
     auto time_conv_beg = high_resolution_clock::now();
     auto nrg_game = energy_game<weight_t> (this->game, logger, trace);
     auto time_sol_beg = high_resolution_clock::now();
-    std::cout << "conversion: " << duration_cast<nanoseconds>(time_sol_beg - time_conv_beg) / 1ms << "\n";
+    std::cout << "conversion: "
+              << duration_cast<nanoseconds>(time_sol_beg - time_conv_beg) / 1ms << "\n";
 
     auto potential_computer = potential_computers::potential_fvi_alt (nrg_game, logger, trace);
 
@@ -60,15 +63,8 @@ namespace pg {
       log (nrg_game << std::endl);
     }
 
-    std::cout << "solving: " << duration_cast<nanoseconds>(high_resolution_clock::now () - time_sol_beg) / 1ms << "\n";
-
-    /*
-     La stratégie gagnante pour Max (depuis les sommets qui sont détectés comme
-     ayant potentiel infini, c'est à dire le complémentaire de F) c'est de
-     prendre n'importe quelle arrête comme dans (1) : poids modifié non-negatif
-     qui reste dans le complémentaire de F
-     */
-    // Send out the results
+    std::cout << "solving: "
+              << duration_cast<nanoseconds>(high_resolution_clock::now () - time_sol_beg) / 1ms << "\n";
 
     auto&& pot = nrg_game.get_potential ();
     for (auto&& v : nrg_game.vertices ()) {

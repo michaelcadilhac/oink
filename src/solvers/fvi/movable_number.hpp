@@ -145,6 +145,9 @@ using boost_movable_number = movable_number<T, boost_allocator<T>>;
 template <typename T>
 using recycling_movable_number = movable_number<T, recycling_allocator<T>>;
 
+template <typename W>
+concept MovableWeight = is_instantiation_of_v<W, movable_number> and Weight<typename W::number_t>;
+
 namespace std {
   template <typename T, typename A>
   std::ostream& operator<< (std::ostream& os, const movable_number<T, A>& wt) {
