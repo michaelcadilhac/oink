@@ -309,7 +309,7 @@ Oink::solveSingleParity()
 void
 Oink::solve(int node, int win, int strategy)
 {
-    /*
+
     if (trace) {
         logger << "\033[1;32msolved " << (win ? "(odd)" : "(even)") << "\033[m " << game->label_vertex(node);
         if (strategy != -1) logger << " to " << game->label_vertex(strategy);
@@ -489,7 +489,7 @@ Oink::run()
         logger << "solved by preprocessor." << std::endl;
         return;
     }
-        
+
     if (solver == std::nullopt) {
         logger << "no solver selected!" << std::endl;
         return;
