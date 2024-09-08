@@ -30,6 +30,7 @@ class movable_number {
       other.owns = false;
     }
 
+    template <typename T = Number, std::enable_if_t<not std::is_integral_v<T>, bool> = true>
     movable_number (const int64_t& src) : movable_number () { *num = src; }
     movable_number (const number_t& src) : movable_number () { *num = src; }
     movable_number (number_t&& src) : movable_number () { *num = std::move (src); }
@@ -89,7 +90,9 @@ class movable_number {
       return *this;
     }
 
-    movable_number& operator= (int64_t other) {
+    template <typename T = Number>
+    typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
+    operator= (int64_t other) {
       *num = other;
       return *this;
     }
@@ -108,11 +111,21 @@ class movable_number {
     bool operator>  (const movable_number& other) const { return *num > *other; }
     bool operator>= (const movable_number& other) const { return *num >= *other; }
 
-    bool operator== (int64_t other) const { return *num == other; }
-    bool operator<  (int64_t other) const { return *num < other; }
-    bool operator<= (int64_t other) const { return *num <= other; }
-    bool operator>  (int64_t other) const { return *num > other; }
-    bool operator>= (int64_t other) const { return *num >= other; }
+    template <typename T = Number>
+    typename std::enable_if_t<not std::is_integral_v<T>, bool>
+    operator== (int64_t other) const { return *num == other; }
+    template <typename T = Number>
+    typename std::enable_if_t<not std::is_integral_v<T>, bool>
+    operator<  (int64_t other) const { return *num < other; }
+    template <typename T = Number>
+    typename std::enable_if_t<not std::is_integral_v<T>, bool>
+    operator<= (int64_t other) const { return *num <= other; }
+    template <typename T = Number>
+    typename std::enable_if_t<not std::is_integral_v<T>, bool>
+    operator>  (int64_t other) const { return *num > other; }
+    template <typename T = Number>
+    typename std::enable_if_t<not std::is_integral_v<T>, bool>
+    operator>= (int64_t other) const { return *num >= other; }
 
     bool operator== (const number_t& other) const { return *num == other; }
     bool operator<  (const number_t& other) const { return *num < other; }
@@ -121,11 +134,15 @@ class movable_number {
     bool operator>= (const number_t& other) const { return *num >= other; }
 
     movable_number& operator+= (const movable_number& other)   { *num += *other; return *this; }
-    movable_number& operator+= (int64_t other)         { *num += other; return *this; }
+    template <typename T = Number>
+    typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
+    operator+= (int64_t other)         { *num += other; return *this; }
     movable_number& operator+= (const number_t& other) { *num += other; return *this; }
 
     movable_number& operator-= (const movable_number& other)   { *num -= *other; return *this; }
-    movable_number& operator-= (int64_t other)         { *num -= other; return *this; }
+    template <typename T = Number>
+    typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
+    operator-= (int64_t other)         { *num -= other; return *this; }
     movable_number& operator-= (const number_t& other) { *num -= other; return *this; }
     ///@}
 

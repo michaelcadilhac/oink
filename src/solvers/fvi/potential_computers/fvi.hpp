@@ -147,9 +147,9 @@ namespace potential_computers {
               if (SwapRoles ? o.first > 0 : o.first < 0) continue;
               assert (F[o.second]);
               if (SwapRoles)
-                (*potential[v]).set_if_plus_smaller (*o.first, *potential[o.second]);
+                set_if_plus_smaller (*potential[v], *o.first, *potential[o.second]);
               else
-                (*potential[v]).set_if_plus_larger (*o.first, *potential[o.second]);
+                set_if_plus_larger (*potential[v], *o.first, *potential[o.second]);
             }
             log ("Putting " << v << " in F with pot " << potential[v] << std::endl);
             F[v] = true;
