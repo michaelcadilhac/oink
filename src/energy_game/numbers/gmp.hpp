@@ -1,5 +1,7 @@
 #pragma once
 
+#include <boost/multiprecision/gmp.hpp>
+
 class gmp;
 
 /// This is fairly deep into the boost implementation.  We're saying: 1. @a gmp
@@ -56,7 +58,7 @@ class gmp : public boost::multiprecision::mpz_int {
       return false;
     }
 
-    static gmp priority_to_weight (const priority_t& prio,
+    static gmp priority_to_number (const priority_t& prio,
                                      const pg::Game& pgame,
                                      bool swap)
     {
@@ -84,7 +86,7 @@ class gmp : public boost::multiprecision::mpz_int {
         return gmp (pow (base, prio) );
     }
 
-    static gmp infinity_weight (const pg::Game& pgame) {
+    static gmp infinity_number (const pg::Game& pgame) {
       ssize_t t = pgame.nodecount ();
       ssize_t sbase = 1;
       while (t != 0) {
@@ -100,7 +102,7 @@ class gmp : public boost::multiprecision::mpz_int {
       //      (pgame.nodecount () - 1) + 1);
     }
 
-    static gmp zero_weight (const gmp&) {
+    static gmp zero_number (const gmp&) {
       return gmp (0);
     }
 

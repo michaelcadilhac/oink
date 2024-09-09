@@ -135,7 +135,7 @@ class omap {
       return set_if_plus (p1, p2, LHS_GREATER);
     }
 
-    static omap priority_to_weight (const priority_t& prio,
+    static omap priority_to_number (const priority_t& prio,
                                     const pg::Game&,
                                     bool swap) {
       typename omap::map_t map;
@@ -143,14 +143,14 @@ class omap {
       return omap (std::move (map));
     }
 
-    static omap infinity_weight (const pg::Game& pgame) {
+    static omap infinity_number (const pg::Game& pgame) {
       auto max_prio = pgame.priority (pgame.nodecount () - 1);
       typename omap::map_t map;
       map[max_prio] = pgame.edgecount () + 1;
       return omap (std::move (map));
     }
 
-    static omap zero_weight (const omap&) {
+    static omap zero_number (const omap&) {
       return omap ();
     }
 

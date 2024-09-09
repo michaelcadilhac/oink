@@ -19,6 +19,8 @@
 
 #include "oink/solver.hpp"
 
+#include "energy_game.hpp"
+
 namespace pg {
 
   class FVISolver : public Solver {
@@ -26,6 +28,9 @@ namespace pg {
       FVISolver (Oink& oink, Game& game);
       virtual ~FVISolver ();
       virtual void run ();
+    private:
+      using weight_t    = int64_weight_t;
+      energy_game<weight_t> nrg_game;
   };
 }
 

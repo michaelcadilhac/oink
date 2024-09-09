@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ranges>
+
 template <typename T>
 class ovec {
     using vec_t = std::vector<T>;
@@ -98,7 +100,7 @@ class ovec {
     bool set_if_plus_larger (const ovec& p1, const ovec& p2) { return set_if_plus (p1, p2, true); }
     bool set_if_plus_smaller (const ovec& p1, const ovec& p2) { return set_if_plus (p1, p2, false); }
 
-    static ovec priority_to_weight (const priority_t& prio,
+    static ovec priority_to_number (const priority_t& prio,
                                     const pg::Game& pgame,
                                     bool swap) {
       auto max_prio = pgame.priority (pgame.nodecount () - 1);
@@ -107,14 +109,14 @@ class ovec {
       return std::move (vec);
     }
 
-    static ovec infinity_weight (const pg::Game& pgame) {
+    static ovec infinity_number (const pg::Game& pgame) {
       auto max_prio = pgame.priority (pgame.nodecount () - 1);
       vec_t vec (max_prio + 1);
       vec[0] = pgame.edgecount () + 1;
       return std::move (vec);
     }
 
-    static ovec zero_weight (const ovec& other) {
+    static ovec zero_number (const ovec& other) {
       return other.vec.size (); // initialized to 0
     }
 

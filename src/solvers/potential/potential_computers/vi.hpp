@@ -30,7 +30,7 @@ namespace potential_computers {
             }
           }
           if (potential[v] < 0)
-            potential[v] = zero_weight<W> (game.get_infty ());
+            potential[v] = zero_number<W> (game.get_infty ());
         }
       }
   };

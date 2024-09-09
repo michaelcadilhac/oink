@@ -51,11 +51,17 @@ skip_line(std::streambuf *rd)
 }
 
 static bool
-read_uint64(std::streambuf *rd, uint64_t *res)
+read_int64(std::streambuf *rd, int64_t *res)
 {
-    uint64_t r = 0;
+    int64_t r = 0;
     int ch;
+    bool minus = false;
     if ((ch=rd->sgetc()) == EOF) return false;
+    if (ch == '-') {
+      minus = true;
+      rd->sbumpc();
+      if ((ch=rd->sgetc()) == EOF) return false;
+    }      
     if (ch < '0' or ch > '9') { return false; }
     while (true) {
         rd->sbumpc();
@@ -63,7 +69,7 @@ read_uint64(std::streambuf *rd, uint64_t *res)
         if ((ch=rd->sgetc()) == EOF) break;
         if (ch < '0' or ch > '9') { break; }
     }
-    *res = r;
+    *res = (minus ? -1 : 1) * r;
     return true;
 }
 
@@ -73,7 +79,7 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
     std::streambuf *rd = inp.rdbuf();
 
     char buf[64];
-    uint64_t n;
+    int64_t n;
 
     /**
      * Read header line...
@@ -85,7 +91,7 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
     if (strncmp(buf, "parity", 6) != 0) throw std::runtime_error("expecting parity game specification");
 
     skip_whitespace(rd);
-    if (!read_uint64(rd, &n)) throw std::runtime_error("missing number of nodes");
+    if (!read_int64(rd, &n)) throw std::runtime_error("missing number of nodes");
 
     skip_whitespace(rd);
     if (rd->sbumpc() != ';') throw std::runtime_error("missing ';'");
@@ -111,9 +117,9 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
     res.solved.set(); // we use solved to store whether a node has not yet been read
 
     while (node_count < res.n_vertices) {
-        uint64_t id;
+        int64_t id;
         skip_whitespace(rd);
-        if (!read_uint64(rd, &id)) {
+        if (!read_int64(rd, &id)) {
             // we expect maybe one more node...
             if (node_count == res.n_vertices-1) {
                 res.v_resize(node_count);
@@ -129,12 +135,12 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
         node_count++;
 
         skip_whitespace(rd);
-        if (!read_uint64(rd, &n)) throw std::runtime_error("missing priority");
+        if (!read_int64(rd, &n)) throw std::runtime_error("missing priority");
         if (n > INT_MAX) throw std::runtime_error("priority too high"); // don't be ridiculous
         res._priority[id] = n;
 
         skip_whitespace(rd);
-        if (!read_uint64(rd, &n)) throw std::runtime_error("missing owner");
+        if (!read_int64(rd, &n)) throw std::runtime_error("missing owner");
 
         if (n == 0) { /* nothing */ }
         else if (n == 1) { res._owner[id] = true; }
@@ -149,8 +155,8 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
         // parse successors and optional label
         for (;;) {
             skip_whitespace(rd);
-            if (!read_uint64(rd, &n)) throw std::runtime_error("missing successor");
-            if (n >= (uint64_t)res.n_vertices) {
+            if (!read_int64(rd, &n)) throw std::runtime_error("missing successor");
+            if (n >= (int64_t)res.n_vertices) {
                 std::cout << "id " << id << " with successor " << n << std::endl;
                 throw std::runtime_error("invalid successor");
             }
@@ -219,14 +225,14 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
     std::streambuf *rd = inp.rdbuf();
 
     char buf[64];
-    uint64_t n;
+    int64_t n;
 
     inp.read(buf, 6);
     if (!inp) throw std::runtime_error("expecting parity game specification");
     if (strncmp(buf, "parity", 6) != 0) throw std::runtime_error("expecting parity game specification");
 
     skip_whitespace(rd);
-    if (!read_uint64(rd, &n)) throw std::runtime_error("missing number of nodes");
+    if (!read_int64(rd, &n)) throw std::runtime_error("missing number of nodes");
 
     skip_whitespace(rd);
     if (rd->sbumpc() != ';') throw std::runtime_error("missing ';'");
@@ -255,10 +261,10 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
     size_t edge_count = 0; // number of read edges
 
     while (node_count < n_vertices) {
-        uint64_t id;
+        int64_t id;
         skip_whitespace(rd);
         // TODO: assume size is n, not n+1
-        if (!read_uint64(rd, &id)) {
+        if (!read_int64(rd, &id)) {
             // we expect maybe one more node...
             if (node_count == n_vertices - 1 && !seen[n_vertices - 1]) {
                 n_vertices -= 1;
@@ -277,12 +283,12 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
         node_count++;
 
         skip_whitespace(rd);
-        if (!read_uint64(rd, &n)) throw std::runtime_error("missing priority");
+        if (!read_int64(rd, &n)) throw std::runtime_error("missing priority");
         if (n > INT_MAX) throw std::runtime_error("priority too high"); // don't be ridiculous
         priority[id] = n;
 
         skip_whitespace(rd);
-        if (!read_uint64(rd, &n)) throw std::runtime_error("missing owner");
+        if (!read_int64(rd, &n)) throw std::runtime_error("missing owner");
 
         if (n == 1) owner[id] = true;
         else if (n != 0) throw std::runtime_error("invalid owner (must be 0 or 1)");
@@ -293,8 +299,8 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
         // parse successors and optional label
         for (;;) {
             skip_whitespace(rd);
-            if (!read_uint64(rd, &n)) throw std::runtime_error("missing successor");
-            if (n >= (uint64_t)n_vertices) {
+            if (!read_int64(rd, &n)) throw std::runtime_error("missing successor");
+            if (n >= (int64_t)n_vertices) {
                 std::stringstream err;
                 err << "invalid successor for id " << id;
                 throw std::runtime_error(err.str());
@@ -352,7 +358,7 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
     std::streambuf *rd = in.rdbuf();
 
     char buf[64];
-    uint64_t n;
+    int64_t n;
 
     /**
      * Read header line... one of the following:
@@ -365,7 +371,7 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
     if (strncmp(buf, "parity", 6) != 0) throw std::runtime_error("expecting parity game specification");
 
     skip_whitespace(rd);
-    if (!read_uint64(rd, &n)) throw std::runtime_error("missing number of nodes");
+    if (!read_int64(rd, &n)) throw std::runtime_error("missing number of nodes");
 
     skip_whitespace(rd);
     if (rd->sbumpc() != ';') throw std::runtime_error("missing ';'");
@@ -389,7 +395,7 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
 
     // initialize variables
     bitset seen(n_vertices);
-    std::vector<uint64_t> priority(n_vertices);
+    std::vector<int64_t> priority(n_vertices);
     bitset owner(n_vertices);
     std::vector<std::vector<int>> edges(n_vertices);
     std::vector<std::string*> labels(n_vertices);
@@ -402,10 +408,10 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
     size_t edge_count = 0; // number of read edges
 
     while (node_count < n_vertices) {
-        uint64_t id;
+        int64_t id;
         skip_whitespace(rd);
         // TODO: assume size is n, not n+1
-        if (!read_uint64(rd, &id)) {
+        if (!read_int64(rd, &id)) {
             // we expect maybe one more node...
             if (node_count == n_vertices - 1 && !seen[n_vertices - 1]) {
                 n_vertices -= 1;
@@ -425,11 +431,11 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
         node_count++;
 
         skip_whitespace(rd);
-        if (!read_uint64(rd, &n)) throw std::runtime_error("missing priority");
+        if (!read_int64(rd, &n)) throw std::runtime_error("missing priority");
         priority[id] = n;
 
         skip_whitespace(rd);
-        if (!read_uint64(rd, &n)) throw std::runtime_error("missing owner");
+        if (!read_int64(rd, &n)) throw std::runtime_error("missing owner");
 
         if (n == 1) owner[id] = true;
         else if (n != 0) throw std::runtime_error("invalid owner (must be 0 or 1)");
@@ -440,8 +446,8 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
         // parse successors and optional label
         for (;;) {
             skip_whitespace(rd);
-            if (!read_uint64(rd, &n)) throw std::runtime_error("missing successor");
-            if (n >= (uint64_t)n_vertices) {
+            if (!read_int64(rd, &n)) throw std::runtime_error("missing successor");
+            if (n >= (int64_t)n_vertices) {
                 std::stringstream err;
                 err << "invalid successor for id " << id;
                 throw std::runtime_error(err.str());
@@ -490,13 +496,13 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
     }
 
     // we now need to fix the priorities first...
-    boost::container::flat_map<uint64_t, int> map;
+    boost::container::flat_map<int64_t, int> map;
     for (const auto& entry : priority) {
         map[entry] = -1;
     }
 
     int counter = 0;
-    uint64_t previous = 0;
+    int64_t previous = 0;
     for (auto& pair : map) {
         if (previous != pair.first) {
             counter++;

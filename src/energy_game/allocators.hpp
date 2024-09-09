@@ -2,6 +2,7 @@
 
 #include <boost/pool/object_pool.hpp>
 #include <functional>
+#include <stack>
 
 /// An allocator that immediately delegates to new/delete.
 template <typename Data>

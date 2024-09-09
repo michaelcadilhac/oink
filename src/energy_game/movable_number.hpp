@@ -8,19 +8,20 @@
  * owned, copied otherwise).
  */
 
-#include <solvers/fvi/allocators.hpp>
+#include <energy_game/allocators.hpp>
 
 /**
  * Abstract class implementing operators and methods common to all movable
  * numbers.
  *
- * @tparam Number The underlying number type retrieved by dereferencing.
+ * @tparam N The underlying number type retrieved by dereferencing.
+ * @tparam Allocator
  */
-template <typename Number, typename Allocator = new_delete_allocator<Number>>
+template <Number N, Allocator<N> Alloc = new_delete_allocator<N>>
 class movable_number {
   public:
     /// The underlying number type.
-    using number_t = Number;
+    using number_t = N;
 
     movable_number () : num (allocator.construct ()) { owns = true; }
     movable_number (const movable_number& other) : movable_number () { *num = *other; } // deep
@@ -30,7 +31,7 @@ class movable_number {
       other.owns = false;
     }
 
-    template <typename T = Number, std::enable_if_t<not std::is_integral_v<T>, bool> = true>
+    template <typename T = N, std::enable_if_t<not std::is_integral_v<T>, bool> = true>
     movable_number (const int64_t& src) : movable_number () { *num = src; }
     movable_number (const number_t& src) : movable_number () { *num = src; }
     movable_number (number_t&& src) : movable_number () { *num = std::move (src); }
@@ -90,7 +91,7 @@ class movable_number {
       return *this;
     }
 
-    template <typename T = Number>
+    template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
     operator= (int64_t other) {
       *num = other;
@@ -111,19 +112,19 @@ class movable_number {
     bool operator>  (const movable_number& other) const { return *num > *other; }
     bool operator>= (const movable_number& other) const { return *num >= *other; }
 
-    template <typename T = Number>
+    template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, bool>
     operator== (int64_t other) const { return *num == other; }
-    template <typename T = Number>
+    template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, bool>
     operator<  (int64_t other) const { return *num < other; }
-    template <typename T = Number>
+    template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, bool>
     operator<= (int64_t other) const { return *num <= other; }
-    template <typename T = Number>
+    template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, bool>
     operator>  (int64_t other) const { return *num > other; }
-    template <typename T = Number>
+    template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, bool>
     operator>= (int64_t other) const { return *num >= other; }
 
@@ -134,20 +135,31 @@ class movable_number {
     bool operator>= (const number_t& other) const { return *num >= other; }
 
     movable_number& operator+= (const movable_number& other)   { *num += *other; return *this; }
-    template <typename T = Number>
+    template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
     operator+= (int64_t other)         { *num += other; return *this; }
     movable_number& operator+= (const number_t& other) { *num += other; return *this; }
-
     movable_number& operator-= (const movable_number& other)   { *num -= *other; return *this; }
-    template <typename T = Number>
+    template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
     operator-= (int64_t other)         { *num -= other; return *this; }
     movable_number& operator-= (const number_t& other) { *num -= other; return *this; }
+
+    movable_number operator+ (const movable_number& other) const {
+      movable_number ret (*this);
+      ret += other;
+      return ret;
+    }
+    movable_number operator- (const movable_number& other) const {
+      movable_number ret (*this);
+      ret -= other;
+      return ret;
+    }
+
     ///@}
 
   private:
-    static inline Allocator allocator { 1 << 15 };
+    static inline Alloc allocator { 1 << 15 };
 
     /// The number.
     number_t* num;
@@ -161,9 +173,6 @@ using boost_movable_number = movable_number<T, boost_allocator<T>>;
 
 template <typename T>
 using recycling_movable_number = movable_number<T, recycling_allocator<T>>;
-
-template <typename W>
-concept MovableWeight = is_instantiation_of_v<W, movable_number> and Weight<typename W::number_t>;
 
 namespace std {
   template <typename T, typename A>

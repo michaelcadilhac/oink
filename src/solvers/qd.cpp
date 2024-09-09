@@ -22,13 +22,14 @@ namespace pg {
 
   QDSolver::QDSolver (Oink& oink, Game& game) :
     Solver (oink, game),
+    nrg_game (this->game, logger, trace),
     strategy (game.getStrategy ()),
     n_nodes (game.nodecount ()) {
 
     ingame.resize (n_nodes);
 
-    weight = new long int [n_nodes];
-    msr = new long int [n_nodes];
+    weight = new weight_t [n_nodes];
+    msr = new weight_t [n_nodes];
     newsucc = new int[n_nodes];
     count = new int[n_nodes];
 
@@ -59,8 +60,8 @@ namespace pg {
       oldmsr = msr[pos];
       best_succ = -1;
 
-      if (game.owner (pos) == 1) {
-        for (int successor : game.outvec (pos)) {
+      if (nrg_game.is_min (pos)) {
+        for (const auto& [w, successor] : nrg_game.outs (pos)) {
           if (best_succ == -1 || (msr[best_succ] > msr[successor])) {
             best_succ = successor;
             count[pos] = 1;
@@ -80,14 +81,12 @@ namespace pg {
         msr[pos] = LONG_MAX;
       }
 
-      for (auto ppredecessor = ins (pos); * ppredecessor != -1; ++ppredecessor) {
-        auto predecessor = * ppredecessor;
-
+      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
         if (ingame[predecessor] && (!ingame[pos] || msr[predecessor] < msr[pos] + weight[predecessor])) {
-          if (game.owner (predecessor) == 1) {
+          if (nrg_game.is_min (predecessor)) {
             if (msr[predecessor] == 0) {
               if (!BAtr[predecessor]) {
-                if (0 >= oldmsr + weight[predecessor]) {
+                if (oldmsr + weight[predecessor] <= 0) {
                   count[predecessor] = count[predecessor] - 1;
                 }
 
@@ -144,11 +143,9 @@ namespace pg {
     while (TProm.nonempty ()) {
       pos = TProm.pop ();
 
-      for (auto ppredecessor = ins (pos); * ppredecessor != -1; ++ppredecessor) {
-        auto predecessor = * ppredecessor;
-
+      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
         if (ingame[predecessor] && !BQset[predecessor] && (msr[predecessor] > 0)) {
-          if (game.owner (predecessor) == 0) {
+          if (nrg_game.is_max (predecessor)) {
             if (strategy[predecessor] == (int) pos) {
               if (!BProm[predecessor]) {
                 TProm.push (predecessor);
@@ -182,8 +179,8 @@ namespace pg {
     for (pos = BQset.find_first (); pos < (uint) n_nodes; pos = BQset.find_next (pos)) {
       best_succ = -1;
 
-      if (game.owner (pos) == 0) {
-        for (int successor : game.outvec (pos)) {
+      if (nrg_game.is_max (pos)) {
+        for (const auto& [w, successor] : nrg_game.outs (pos)) {
           if (BQset[successor]) {
             if ((strategy[pos] == successor) || (msr[pos] < msr[successor] + weight[pos])) {
               count[pos] = count[pos] + 1;
@@ -206,7 +203,7 @@ namespace pg {
           E[pos] = true;
         }
       } else {
-        for (int successor : game.outvec (pos)) {
+        for (const auto& [w, successor] : nrg_game.outs (pos)) {
           if (!BQset[successor]) {
             if (best_succ == -1 || (ingame[successor] && msr[best_succ] > msr[successor])) {
               best_succ = successor;
@@ -229,7 +226,7 @@ namespace pg {
   }
 
   _INLINE_ void QDSolver::nextpush (int predecessor) {
-    if (game.owner (predecessor) == 0) {
+    if (nrg_game.is_max (predecessor)) {
       if (msr[predecessor] == 0) {
         if (!BAtr[predecessor]) {
           TAtr.push (predecessor);
@@ -281,8 +278,8 @@ namespace pg {
       msr[pos] = msr[pos] + bef;
       BQset[pos] = false;
 
-      if (game.owner (pos) == 1) {
-        for (int successor : game.outvec (pos)) {
+      if (nrg_game.is_min (pos)) {
+        for (const auto& [w, successor] : nrg_game.outs (pos)) {
           if (ingame[successor] && !BQset[successor] && (msr[pos] >= msr[successor] + weight[pos])) {
             count[pos] = count[pos] + 1;
           }
@@ -291,12 +288,10 @@ namespace pg {
         strategy[pos] = newsucc[pos];
       }
 
-      for (auto ppredecessor = ins (pos); * ppredecessor != -1; ++ppredecessor) {
-        auto predecessor = * ppredecessor;
-
+      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
         if (predecessor != (int) pos && ingame[predecessor]) {
           if (BQset[predecessor]) {
-            if (game.owner (predecessor) == 1) {
+            if (nrg_game.is_min (predecessor)) {
               bef = msr[pos] + weight[predecessor] - msr[predecessor];
               pair.set (predecessor, bef);
 
@@ -317,9 +312,9 @@ namespace pg {
               if (!E[predecessor] && count[predecessor] == 0) {
                 best_succ = -1;
 
-                for (int successor : game.outvec (predecessor)) {
+                for (const auto& [w, successor] : nrg_game.outs (predecessor)) {
                   if (!BQset[successor]) {
-                    if (game.owner (predecessor) == 0) {
+                    if (nrg_game.is_max (predecessor)) {
                       if (best_succ == -1 || msr[best_succ] < msr[successor]) {
                         best_succ = successor;
                         newsucc[predecessor] = best_succ;
@@ -359,9 +354,7 @@ namespace pg {
         oldmsr = msr[pos];
         msr[pos] = LONG_MAX;
 
-        for (auto ppredecessor = ins (pos); * ppredecessor != -1; ++ppredecessor) {
-          auto predecessor = * ppredecessor;
-
+      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
           if (ingame[predecessor]) {
             nextpush (predecessor);
           }
@@ -372,24 +365,23 @@ namespace pg {
 
   void QDSolver::run () {
     ingame.set ();
-    game.vec_init ();
 
     for (pos = 0; pos < (uint) n_nodes; ++pos) {
       msr[pos] = 0;
       newsucc[pos] = -1;
       count[pos] = 0;
-      weight[pos] = game.priority (pos);
+      weight[pos] = nrg_game.some_outweight (pos);
 
-      if (game.priority (pos) > 0) {
+      if (nrg_game.some_outweight (pos) > 0) {
         TAtr.push (pos);
         BAtr[pos] = true;
 
-        if (game.owner (pos) == 0) {
-          newsucc[pos] = game.outvec (pos)[0];
+        if (nrg_game.is_max (pos)) {
+          newsucc[pos] = nrg_game.outs (pos)[0].second;
         }
       } else {
-        if (game.owner (pos) == 1) {
-          count[pos] = game.outvec (pos).size ();
+        if (nrg_game.is_min (pos)) {
+          count[pos] = nrg_game.outs (pos).size ();
         }
       }
     }
@@ -406,7 +398,5 @@ namespace pg {
         Solver::solve (pos, 0, strategy[pos]);
       }
     }
-
-    game.vec_finish ();
   }
 }

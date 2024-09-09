@@ -17,11 +17,14 @@
 #pragma once
 
 #include "oink/solver.hpp"
+#include "energy_game.hpp"
+
 #include <boost/heap/pairing_heap.hpp>
 
 namespace pg {
 
   class QDSolver : public Solver {
+      using weight_t = int64_weight_t;
     public:
 
       /****************************************************************************/
@@ -49,9 +52,9 @@ namespace pg {
 
       struct data {
           int position;
-          long int bef;
+          weight_t bef;
 
-          data (int pos, long int befx):
+          data (int pos, weight_t befx):
             position (pos), bef (befx)
           {}
 
@@ -63,7 +66,7 @@ namespace pg {
             position (0), bef (0)
           {}
 
-          void set (int pos, long int befx) {
+          void set (int pos, weight_t befx) {
             position = pos;
             bef = befx;
           }
@@ -72,6 +75,7 @@ namespace pg {
       /****************************************************************************/
 
     protected:
+      energy_game<weight_t> nrg_game;
 
       /****************************************************************************/
       /* Game fields                                                              */
@@ -79,7 +83,7 @@ namespace pg {
 
       int* strategy;    // Strategies of the players
       bitset ingame;    // Positions whose winner has been already determined
-      long int* weight; // weight of each node
+      weight_t* weight; // weight of each node
       unsigned int n_nodes; // number of nodes in game
 
       /****************************************************************************/
@@ -88,8 +92,8 @@ namespace pg {
       /* Measure function fields                                                  */
       /****************************************************************************/
 
-      long int* msr;    // Measure function
-      long int oldmsr;  // Old measure function
+      weight_t* msr;    // Measure function
+      weight_t oldmsr;  // Old measure function
       int* newsucc;     // New strategy
       int* count;       // Counter
       bitset TopBef;    // Auxiliary membership bitset for the tail queue
@@ -105,7 +109,7 @@ namespace pg {
       /****************************************************************************/
 
       uint pos;         // Working position
-      long int bef;     // Working position
+      weight_t bef;     // Working position
       int best_succ;    // Working position
       bitset E;         // Escape positions of the working region
 

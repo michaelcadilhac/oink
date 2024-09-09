@@ -14,65 +14,58 @@
 
 #include "solvers/fvi.hpp"
 
-#include "solvers/fvi/weights.hpp"
-#include "solvers/fvi/movable_number.hpp"
+#include "energy_game.hpp"
+#include "solvers/potential/potential_teller.hpp"
+#include "solvers/potential/potential_computers.hpp"
 
-#include "solvers/fvi/potential_computers.hpp"
-#include "solvers/fvi/stats.hpp"
-
-#include "solvers/fvi/energy_game.hpp"
-
-
-using int64_weight_t  = movable_number<int64_t>;
-using gmp_weight_t    = movable_number<gmp>;
-using vec_weight_t    = movable_number<ovec<int32_t>>;
-using map_weight_t    = movable_number<omap<int32_t, int32_t>>;
-
-using weight_t    = int64_weight_t;
+#ifdef NDEBUG
+# define log(T)
+# define log_stat(T)
+#else
+# define log(T) do { if (this->trace >= 1) { this->logger << T; } } while (0)
+# define log_stat(T) do { std::cout << T; } while (0)
+#endif
 
 namespace pg {
-  FVISolver::FVISolver (Oink& oink, Game& game) : Solver (oink, game) { }
+  FVISolver::FVISolver (Oink& oink, Game& game) :
+    Solver (oink, game),
+    nrg_game (this->game, logger, trace)
+  { }
 
   FVISolver::~FVISolver() { } // must be defined.
 
   void FVISolver::run() {
     using namespace std::chrono;
-    fvi_stats::eg_pot_update = 0;
-    fvi_stats::eg_reduce = 0;
-    fvi_stats::pot_compute = 0;
-    fvi_stats::pot_iter = 0;
-    fvi_stats::pot_phase2 = 0;
-    fvi_stats::pot_backtrack = 0;
+    potential::stats::eg_pot_update = 0;
+    potential::stats::eg_reduce = 0;
+    potential::stats::pot_compute = 0;
+    potential::stats::pot_iter = 0;
+    potential::stats::pot_phase2 = 0;
+    potential::stats::pot_backtrack = 0;
 
     using namespace std::literals; // enables literal suffixes, e.g. 24h, 1ms, 1s.
 
-    auto time_conv_beg = high_resolution_clock::now();
-    auto nrg_game = energy_game<weight_t> (this->game, logger, trace);
+    auto teller = potential::potential_teller (nrg_game);
+    auto computer = potential::potential_fvi_alt (nrg_game, teller, logger, trace);
+
     auto time_sol_beg = high_resolution_clock::now();
-    std::cout << "conversion: "
-              << duration_cast<nanoseconds>(time_sol_beg - time_conv_beg) / 1ms << "\n";
 
-    auto potential_computer = potential_computers::potential_fvi_alt (nrg_game, logger, trace);
-
-    log (nrg_game << std::endl);
     log ("Infinity: " << nrg_game.get_infty () << std::endl);
-    while (not nrg_game.is_decided ()) {
-      potential_computer.compute();
-      log ("Potential: " << potential_computer << std::endl);
-      auto&& new_potential = potential_computer.get_potential ();
-      nrg_game.reduce (new_potential);
+    do {
       log (nrg_game << std::endl);
-    }
+      computer.compute ();
+      log ("Potential: " << computer << std::endl);
+    } while (teller.reduce (computer.get_potential ()));
 
     std::cout << "solving: "
               << duration_cast<nanoseconds>(high_resolution_clock::now () - time_sol_beg) / 1ms << "\n";
 
-    auto&& pot = nrg_game.get_potential ();
+    auto&& pot = teller.get_potential ();
     for (auto&& v : nrg_game.vertices ()) {
       if (game.isSolved (v)) continue;
       log ("vertex " << v << (nrg_game.is_max (v) ? " (max) " : " (min) "));
       log (" potential " << pot[v]);
-      if (auto strat = potential_computer.strategy_for (v)) {
+      if (auto strat = computer.strategy_for (v)) {
         log (" take (" << v << ", " << *strat << ")\n");
         Solver::solve (v, not nrg_game.is_max (v), *strat);
       }
@@ -82,12 +75,14 @@ namespace pg {
       }
     }
 
-    log_stat ("stat: eg_pot_update = " << fvi_stats::eg_pot_update << "\n");
-    log_stat ("stat: eg_reduce = " << fvi_stats::eg_reduce << "\n");
-    log_stat ("stat: pot_compute = " << fvi_stats::pot_compute << "\n");
-    log_stat ("stat: pot_iter = " << fvi_stats::pot_iter << "\n");
-    log_stat ("stat: pot_phase2 = " << fvi_stats::pot_phase2 << "\n");
-    log_stat ("stat: pot_backtrack = " << fvi_stats::pot_backtrack << "\n");
-    log ("solved" << std::endl);
+    log_stat ("stat: eg_pot_update = " << potential::stats::eg_pot_update << "\n");
+    log_stat ("stat: eg_reduce = " << potential::stats::eg_reduce << "\n");
+    log_stat ("stat: pot_compute = " << potential::stats::pot_compute << "\n");
+    log_stat ("stat: pot_iter = " << potential::stats::pot_iter << "\n");
+    log_stat ("stat: pot_phase2 = " << potential::stats::pot_phase2 << "\n");
+    log_stat ("stat: pot_backtrack = " << potential::stats::pot_backtrack << "\n");
   }
 }
+
+#undef log_stat
+#undef log
