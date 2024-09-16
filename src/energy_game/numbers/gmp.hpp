@@ -62,6 +62,10 @@ class gmp : public boost::multiprecision::mpz_int {
                                      const pg::Game& pgame,
                                      bool swap)
     {
+#ifdef GAMES_ARE_NRG
+      return ::priority_to_number<int64_t> (prio, pgame, swap);
+#else
+
       // TODO Clean this nonsense.
       ssize_t t = pgame.nodecount ();
       ssize_t sbase = 1;
@@ -84,9 +88,13 @@ class gmp : public boost::multiprecision::mpz_int {
         return gmp (-(pow (base, prio))); // TODO change for base^prio
       else
         return gmp (pow (base, prio) );
+#endif
     }
 
     static gmp infinity_number (const pg::Game& pgame) {
+#ifdef GAMES_ARE_NRG
+      return ::infinity_number<int64_t> (pgame);
+#else
       ssize_t t = pgame.nodecount ();
       ssize_t sbase = 1;
       while (t != 0) {
@@ -94,12 +102,13 @@ class gmp : public boost::multiprecision::mpz_int {
         sbase <<= 1;
       }
       // TODO Change for pow (gmp (pgame.nodecount ()), pgame.priority (pgame.nodecount () - 1)) * (pgame.nodecount () + 1))
-      return gmp (((pow (gmp (sbase), (pgame.priority (pgame.nodecount () - 1) + 1)))));
+      return gmp (((pow (gmp (sbase), (abs (pgame.priority (pgame.nodecount () - 1)) + 1)))));
 
       // return gmp (((pow (gmp (pgame.nodecount ()), pgame.priority (pgame.nodecount () - 1)) *
       //             (pgame.nodecount () + 1))));
       //- 1) *
       //      (pgame.nodecount () - 1) + 1);
+#endif
     }
 
     static gmp zero_number (const gmp&) {

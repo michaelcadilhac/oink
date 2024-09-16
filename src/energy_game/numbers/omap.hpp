@@ -138,6 +138,10 @@ class omap {
     static omap priority_to_number (const priority_t& prio,
                                     const pg::Game&,
                                     bool swap) {
+#ifdef GAMES_ARE_NRG
+      static_assert (false, "omap is not a valid type for native energy games.");
+#endif
+
       typename omap::map_t map;
       map[prio] = (swap ^ (prio % 2)) ? -1 : 1;
       return omap (std::move (map));

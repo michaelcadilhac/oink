@@ -19,7 +19,6 @@ namespace potential {
   template <bool SwapRoles, typename EnergyGame, typename PotentialTeller>
   class potential_fvi_swap : public potential_computer<EnergyGame, PotentialTeller> {
       using weight_t = EnergyGame::weight_t;
-    private:
       using potential_computer<EnergyGame, PotentialTeller>::nrg_game;
       using potential_computer<EnergyGame, PotentialTeller>::teller;
       using potential_computer<EnergyGame, PotentialTeller>::potential;

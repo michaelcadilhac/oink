@@ -64,15 +64,11 @@ class energy_game {
       std::map<priority_t, memoized_number> prio_to_number; // TODO: Turn into vector?
       for (size_t v = 0; v < nverts; ++v) {
         auto prio = pgame.priority (v);
-#if 1
         const W& priow =
           (prio_to_number.try_emplace (prio,
                                        [&prio, &pgame, &swap] () -> W {
                                          return priority_to_number<typename W::number_t> (prio, pgame, swap);
                                        })).first->second ();
-#else
-        const W& priow = W (prio);
-#endif
 
         for (const int* o = pgame.outedges() + pgame.firstout (v); *o != -1; ++o, ++w) {
           W trans_w = W::copy (priow);

@@ -63,6 +63,11 @@ target_include_directories(oink
     $<INSTALL_INTERFACE:include>
 )
 
+option(OINK_ENERGY_GAMES "Assume the underlying games are energy games" OFF) 
+if(OINK_ENERGY_GAMES)
+  target_compile_options(oink PRIVATE "-DGAMES_ARE_NRG")
+endif()
+    
 target_link_libraries(oink PUBLIC pthread lace::lace)
 
 option(OINK_BUILD_NATIVE "Use -march=native flag for compiling Oink" ON)
@@ -115,6 +120,9 @@ set_target_properties(oink PROPERTIES PUBLIC_HEADER "${OINK_HDRS}")
 macro(set_target_props NAME)
     target_compile_features(${NAME} PUBLIC c_std_17 cxx_std_17)
     target_compile_options(${NAME} PRIVATE -Wall -Wextra)
+    if(OINK_ENERGY_GAMES)
+      target_compile_options(${NAME} PRIVATE "-DGAMES_ARE_NRG")
+    endif()
     target_include_directories(${NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${Boost_INCLUDE_DIRS})
     target_link_libraries(${NAME} oink::oink)
 endmacro(set_target_props)

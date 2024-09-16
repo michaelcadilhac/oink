@@ -27,17 +27,28 @@ inline
 int64_t priority_to_number<int64_t> (const priority_t& prio,
                                      const pg::Game& pgame,
                                      bool swap) {
+#ifdef GAMES_ARE_NRG
+  (void) swap; // avoid unused variable warning
+  return (pgame.nodecount () + 1) * prio + 1;
+#else
   int64_t base = -1 * (int64_t) pgame.nodecount ();
   if (swap)
     return -(pow (base, prio));
   else
-    return pow (base, prio);
+   return pow (base, prio);
+#endif
 }
 
 template <>
 inline
 int64_t infinity_number<int64_t> (const pg::Game& pgame) {
-  return pow (pgame.nodecount (), pgame.priority (pgame.nodecount () - 1) + 1);
+#ifdef GAMES_ARE_NRG
+  return (pgame.nodecount () - 1) * ((pgame.nodecount () + 1) *
+                                     std::max (abs (pgame.priority (pgame.nodecount () - 1)),
+                                               abs (pgame.priority (0))) + 1) + 1;
+#else
+  return pow (pgame.nodecount (), abs (pgame.priority (pgame.nodecount () - 1)) + 1);
+#endif
 }
 
 template <>

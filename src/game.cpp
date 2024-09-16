@@ -224,7 +224,11 @@ Game::init_random_game(int n, long maxP, long maxE)
 
     for (int i=0; i<n; i++) {
         // initialize vertex i with random priority and random owner
+#ifdef GAMES_ARE_NRG
+        init_vertex(i, rng(-maxP, maxP), rng(0, 1));
+#else
         init_vertex(i, rng(0, maxP), rng(0, 1));
+#endif
         // add 1 random edge (including self-loops)
         vec_add_edge(i, rng(0, n-1));
     }
@@ -492,7 +496,7 @@ Game::sort(int *mapping)
         for (int i=0; i<n_vertices; i++) mapping[i] = i;
 
         // sort the mapping
-        std::sort(mapping, mapping+n_vertices, [&](const int &a, const int &b) { return (unsigned int)priority(a)<(unsigned int)priority(b); });
+        std::sort(mapping, mapping+n_vertices, [&](const int &a, const int &b) { return priority(a)< priority(b); });
 
         // now mapping stores the reorder, all we need to do now is reorder in-place
         int *inverse = new int[n_vertices];
@@ -803,7 +807,7 @@ Game::copy_solution(Game &other)
     memcpy(strategy, other.strategy, sizeof(int[n_vertices]));
 }
 
-void 
+void
 Game::e_sizeup(void)
 {
     e_allocated += e_allocated/2;

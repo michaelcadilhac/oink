@@ -501,7 +501,7 @@ private:
     int *strategy;         // strategy for winning vertices
 
     void unsafe_permute(int *mapping); // apply a reordering
-    
+
     boost::random::mt19937 generator;
     inline long rng(long low, long high) { return boost::random::uniform_int_distribution<> (low, high)(generator); }
 
@@ -510,4 +510,4 @@ private:
 
 }
 
-#endif 
+#endif

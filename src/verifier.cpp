@@ -23,6 +23,9 @@
 #include <queue>
 #include <deque>
 #include <stack>
+#include <set>
+#include <map>
+#include <ranges>
 
 #include "verifier.hpp"
 
@@ -83,9 +86,14 @@ Verifier::verify(bool fullgame, bool even, bool odd)
     }
 
     // Allocate datastructures for Tarjan search
+#ifdef GAMES_ARE_NRG
+    bool *done = new bool[n_vertices] { false };
+#else
     int *done = new int[n_vertices];
-    int64_t *low = new int64_t[n_vertices];
     for (int i=0; i<n_vertices; i++) done[i] = -1;
+#endif
+
+    int64_t *low = new int64_t[n_vertices];
     for (int i=0; i<n_vertices; i++) low[i] = 0;
 
     std::vector<int> res;
@@ -97,18 +105,21 @@ Verifier::verify(bool fullgame, bool even, bool odd)
         // only if a dominion
         if (!game.isSolved(v)) continue;
 
-        int prio = game.priority(v);
         int winner = game.getWinner(v);
 
         // only compute SCC for a (probably) top vertex
         if (winner == 0 and !even) continue; // don't check even dominions
         if (winner == 1 and !odd) continue; // don't check odd dominions
+#ifdef GAMES_ARE_NRG
+        if (done[v]) continue;
+#else
+        int prio = game.priority(v);
 
         // only try to find an SCC where the loser wins
         if (winner == (prio&1)) continue;
-
         // only run the check if not yet done at priority <prio>
         if (done[v] == prio) continue;
+#endif
 
         // set <bot> (in tarjan search) to current pre
         int64_t bot = pre;
@@ -136,11 +147,18 @@ Verifier::verify(bool fullgame, bool even, bool odd)
             bool pushed = false;
             if (game.getStrategy(v) != -1) {
                 int to = game.getStrategy(v);
-                if (to > v) {
-                    // skip if to higher priority
-                } else if (done[to] == prio) {
-                    // skip if already found scc (done[to] set to prio)
-                } else if (low[to] <= bot) {
+#ifdef GAMES_ARE_NRG
+                if (done[to]) {
+                  // skip, it's already been found
+                }
+                else
+#else
+                if (to > v or done[to] == prio) {
+                  // skip if to higher priority or already found scc (done[to] set to prio)
+                }
+                else
+#endif
+                if (low[to] <= bot) {
                     // not visited, add to <st> and break!
                     st.push(to);
                     pushed = true;
@@ -151,10 +169,15 @@ Verifier::verify(bool fullgame, bool even, bool odd)
             } else {
                 for (auto curedge = game.outs(v); *curedge != -1; curedge++) {
                     int to = *curedge;
-                    // skip if to higher priority
-                    if (to > v) continue;
-                    // skip if already found scc (done[to] set to prio)
-                    if (done[to] == prio) continue;
+#ifdef GAMES_ARE_NRG
+                    if (done[to])
+                      // skip, already seen in another scc
+                      continue;
+#else
+                    if (to > v or done[to] == prio)
+                        // skip if to higher priority or already found scc (done[to] set to prio)
+                        continue;
+#endif
                     // check if visited in this search
                     if (low[to] <= bot) {
                         // not visited, add to <st> and break!
@@ -183,6 +206,61 @@ Verifier::verify(bool fullgame, bool even, bool odd)
              * Now we need to figure out if we have cycles with p...
              * Also, mark every vertex in the SCC as "done @ search p"
              */
+
+#ifdef GAMES_ARE_NRG
+            /** NRG verifier: Check that MAX winning SCC do not have infinite
+             * negative cycles, and MIN winning SCC do not have infinite
+             * positive cycles.
+             */
+
+            // We search for negative cycles if MAX is claimed to be the winner.
+            bool search_negative_cycles = (game.getWinner (v) == 0);
+
+            // Extract SCC, initialize distance.
+            auto scc = std::set<int64_t> ();
+            auto distance = std::map<int64_t, int64_t> ();
+
+            for (auto u : res | std::views::reverse) {
+              done[u] = true;
+              scc.insert (u);
+              distance[u] = search_negative_cycles ? INT64_MAX : INT64_MIN;
+              if (u == v) break;
+            }
+            distance[v] = 0;
+
+            for (size_t i = 0; i < scc.size (); ++i)
+              for (auto u : scc) {
+                if (distance[u] == INT64_MIN or distance[u] ==INT64_MAX)
+                  continue;
+                auto w = game.priority (u);
+                if (not search_negative_cycles) w = -w;
+
+                auto update_succ = [&] (int64_t succ) {
+                  if (not scc.contains (succ)) return;
+                  if (distance[u] + w < distance[succ]) {
+
+                    // Last go: If there is a relaxation, that means there's an
+                    // infinite negative cycle.
+                    if (i == res.size () - 1) {
+                      logger << "\033[1;31mscc where loser wins\033[m";
+                      for (auto n : scc)
+                        logger << " " << n;
+                      logger << std::endl;
+                      throw std::runtime_error("loser can win");
+                    }
+
+                    distance[succ] = distance[u] + w;
+                  }
+                };
+                if (game.getWinner (u) == game.owner (u))
+                  update_succ (game.getStrategy (u));
+                else
+                  for (auto e = game.outs(u); *e != -1; e++)
+                    update_succ (*e);
+              }
+#else
+            /** PG verifier: Check the parity of the highest priority in the SCC. */
+
             int max_prio = -1;
             int scc_size = 0;
             for (auto it=res.rbegin(); it!=res.rend(); it++) {
@@ -197,9 +275,7 @@ Verifier::verify(bool fullgame, bool even, bool odd)
                 (game.getStrategy(v) == -1 and game.has_edge(v, v));
 
             if (cycles && (max_prio&1) == (prio&1)) {
-                /**
-                 * Found! Report.
-                 */
+                // Found! Report.
                 logger << "\033[1;31mscc where loser wins\033[m with priority \033[1;34m" << max_prio << "\033[m";
                 for (auto it=res.rbegin(); it!=res.rend(); it++) {
                     int n = *it;
@@ -212,6 +288,7 @@ Verifier::verify(bool fullgame, bool even, bool odd)
 
                 throw std::runtime_error("loser can win");
             }
+#endif
 
             /**
              * Not found! Continue.

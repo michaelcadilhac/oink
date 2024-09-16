@@ -103,6 +103,10 @@ class ovec {
     static ovec priority_to_number (const priority_t& prio,
                                     const pg::Game& pgame,
                                     bool swap) {
+#ifdef GAMES_ARE_NRG
+      static_assert (false, "ovec is not a valid type for native energy games.");
+#endif
+
       auto max_prio = pgame.priority (pgame.nodecount () - 1);
       vec_t vec (max_prio + 1);
       vec[max_prio - prio] = (swap ^ (prio % 2)) ? -1 : 1;

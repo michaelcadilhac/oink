@@ -61,7 +61,7 @@ read_int64(std::streambuf *rd, int64_t *res)
       minus = true;
       rd->sbumpc();
       if ((ch=rd->sgetc()) == EOF) return false;
-    }      
+    }
     if (ch < '0' or ch > '9') { return false; }
     while (true) {
         rd->sbumpc();
@@ -425,7 +425,7 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
                 throw std::runtime_error("unable to read id");
             }
         }
-        if (id >= n_vertices) throw std::runtime_error("invalid id (too high)");
+        if ((uint64_t) id >= n_vertices) throw std::runtime_error("invalid id (too high)");
         if (seen[id]) throw std::runtime_error("duplicate id");
         seen[id] = true;
         node_count++;
@@ -495,7 +495,11 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
         throw std::runtime_error(err.str());
     }
 
-    // we now need to fix the priorities first...
+#ifdef GAMES_ARE_NRG
+    std::vector<int> int_priorities (priority.begin(), priority.end ());
+    return { node_count, edge_count, int_priorities, owner, edges, labels };
+#else
+    // we now need to fix the first, if the game is indeed a priority game.
     boost::container::flat_map<int64_t, int> map;
     for (const auto& entry : priority) {
         map[entry] = -1;
@@ -518,6 +522,7 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
     }
 
     return { node_count, edge_count, int_priorities, owner, edges, labels };
+#endif
 }
 
 }
