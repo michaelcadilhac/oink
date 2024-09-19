@@ -61,9 +61,9 @@ target_include_directories(oink
 
 target_link_libraries(oink PUBLIC pthread lace::lace)
 
-option(OINK_BUILD_NATIVE "Use -march=native flag for compiling Oink" ON)
+option(OINK_BUILD_NATIVE "Use -march=native flag for compiling in Release mode" ON)
 if(OINK_BUILD_NATIVE)
-    target_compile_options(oink PRIVATE "-march=native")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
 endif()
 
 target_sources(oink
