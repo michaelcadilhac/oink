@@ -77,8 +77,20 @@ Solvers::Solvers()
     _add("rtl", "recursive tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<RTLSolver>(oink, game); });
     _add("ortl", "one-sided recursive tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<ORTLSolver>(oink, game); });
     _add("tl", "tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<TLSolver>(oink, game); });
-    _add("downsets", "downsets", 0, [] (Oink& oink, Game& game) { return std::make_unique<DownsetsSolver>(oink, game); });
-}       
+
+    _add("downsets-kd", "downsets-kd", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<
+        DownsetsSolver<posets::downsets::kdtree_backed<posets::vectors::vector_backed<int16_t>>>>
+        (oink, game);
+    });
+
+    _add("downsets-vec", "downsets-vec", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<
+        DownsetsSolver<posets::downsets::vector_backed<posets::vectors::vector_backed<int16_t>>>>
+        (oink, game);
+    });
+
+}
 
 void
 Solvers::list(std::ostream &out)
@@ -95,13 +107,13 @@ Solvers::list(std::ostream &out)
  * Construct solver with the given parameters
  */
 std::unique_ptr<Solver>
-Solvers::construct(const std::string& id, Oink& oink, Game& game) 
+Solvers::construct(const std::string& id, Oink& oink, Game& game)
 {
-    return instance().solvers[id].constructor(oink, game); 
+    return instance().solvers[id].constructor(oink, game);
 }
 
 void
-Solvers::add(const std::string& id, const std::string& description, bool isParallel, const SolverConstructor& constructor) 
+Solvers::add(const std::string& id, const std::string& description, bool isParallel, const SolverConstructor& constructor)
 {
     instance().solvers[id] = {description, isParallel, constructor};
 }
