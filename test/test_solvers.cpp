@@ -50,7 +50,7 @@ bool opt_single = false;
 bool opt_loops = false;
 bool opt_wcwc = false;
 bool opt_sort = false;
-int opt_workers = 0;
+int opt_workers = -1;
 int opt_trace = -1;
 std::optional<std::string> opt_solver_opts = {};
 
