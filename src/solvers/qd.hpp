@@ -24,7 +24,7 @@
 namespace pg {
 
   class QDSolver : public Solver {
-      using weight_t = int64_weight_t;
+      using weight_t = gmp_weight_t;
     public:
 
       /****************************************************************************/

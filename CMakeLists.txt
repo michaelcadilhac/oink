@@ -110,6 +110,8 @@ target_sources(oink
     src/solvers/ptl.cpp
     src/solvers/dtl.cpp
     src/solvers/qd.cpp
+    src/solvers/osi.cpp
+    src/solvers/sepm.cpp
     ${OINK_HDRS}
 )
 

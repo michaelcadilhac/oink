@@ -41,6 +41,8 @@
 #include "solvers/dtl.hpp"
 #include "solvers/fvi.hpp"
 #include "solvers/qd.hpp"
+#include "solvers/osi.hpp"
+#include "solvers/sepm.hpp"
 
 namespace pg {
 
@@ -85,6 +87,8 @@ Solvers::Solvers()
       return std::make_unique<FVISolver<potential::potential_fvi_alt>> (oink, game);
     });
     _add("qd", "quasi-dominions", 0, [] (Oink& oink, Game& game) { return std::make_unique<QDSolver>(oink, game); });
+    _add("osi", "OSI", 0, [] (Oink& oink, Game& game) { return std::make_unique<OSISolver>(oink, game); });
+    _add("sepm", "SEPM", 0, [] (Oink& oink, Game& game) { return std::make_unique<SEPMSolver>(oink, game); });
 }
 
 void
