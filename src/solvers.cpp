@@ -78,9 +78,14 @@ Solvers::Solvers()
     _add("rtl", "recursive tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<RTLSolver>(oink, game); });
     _add("ortl", "one-sided recursive tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<ORTLSolver>(oink, game); });
     _add("tl", "tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<TLSolver>(oink, game); });
-    _add("fvi", "fast value iteration", 0, [] (Oink& oink, Game& game) { return std::make_unique<FVISolver>(oink, game); });
-    _add("qd", "quasi-dominions", 0, [] (Oink& oink, Game& game) { return std::make_unique<QDSolver>(oink, game); });    
-}       
+    _add("fvi-asym", "fast value iteration (asymmetric)", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<FVISolver<potential::potential_fvi>> (oink, game);
+    });
+    _add("fvi-alt", "fast value iteration (alternating)", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<FVISolver<potential::potential_fvi_alt>> (oink, game);
+    });
+    _add("qd", "quasi-dominions", 0, [] (Oink& oink, Game& game) { return std::make_unique<QDSolver>(oink, game); });
+}
 
 void
 Solvers::list(std::ostream &out)
@@ -97,13 +102,13 @@ Solvers::list(std::ostream &out)
  * Construct solver with the given parameters
  */
 std::unique_ptr<Solver>
-Solvers::construct(const std::string& id, Oink& oink, Game& game) 
+Solvers::construct(const std::string& id, Oink& oink, Game& game)
 {
-    return instance().solvers[id].constructor(oink, game); 
+    return instance().solvers[id].constructor(oink, game);
 }
 
 void
-Solvers::add(const std::string& id, const std::string& description, bool isParallel, const SolverConstructor& constructor) 
+Solvers::add(const std::string& id, const std::string& description, bool isParallel, const SolverConstructor& constructor)
 {
     instance().solvers[id] = {description, isParallel, constructor};
 }
