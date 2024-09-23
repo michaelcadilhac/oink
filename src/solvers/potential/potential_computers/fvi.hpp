@@ -55,14 +55,13 @@ namespace potential {
       void compute () {
         C (pot_compute);
 
-        /*
-         We start by determining in linear time O(m) the set N of vertices from
-         which Min can force to immediately visit an edge of negative weight;
-         these have En+-value 0. We will successively update a set F containing
-         the set of vertices over which En+ is currently known. We initialise
-         this set F to N. Note that all remaining Min vertices have only
-         non-negative outgoing edges, and all remaining Max vertices have (at
-         least) a non-negative outgoing edge.
+        /* We start by determining in linear time the set N of vertices from
+         * which Min can force to immediately visit an edge of negative weight;
+         * these have En+-value 0.  We will successively update a set F
+         * containing the set of vertices over which En+ is currently known. We
+         * initialise this set F to N.  Note that all remaining Min vertices have
+         * only non-negative outgoing edges, and all remaining Max vertices have
+         * (at least) a non-negative outgoing edge.
          */
         log ("Initialization of F\n");
         F.assign (nrg_game.size (), false);
@@ -95,7 +94,8 @@ namespace potential {
           if (not F[v]) continue;
           for (auto&& i : nrg_game.ins (v)) {
             if (not F[i.second] and not (nrg_game.is_max (i.second) ^ SwapRoles)) {
-              phase2_pq.push (std::make_pair (weight_t::proxy (const_cast<weight_t&> (i.first)), i.second)); // !!! should be proxy
+               // Use a weight proxy to avoid duplication.
+              phase2_pq.push (std::make_pair (weight_t::proxy (const_cast<weight_t&> (i.first)), i.second));
             }
           }
         }
@@ -110,11 +110,12 @@ namespace potential {
             phase1_queue.push (v);
         }
 
-        // Pour chaque sommet max, tu retiens le nombre d'arretes qui vont vers
-        // F. Quand tu rajoutes un sommet dans F, tu as juste à regarder les
-        // prédécesseurs qui sont des sommets Max, et à enlever 1 au
-        // décompte. Ca permet de détecter efficavement les sommets Max qu'il
-        // faut ajouter à F (quand leur décompte tombe à zéro)
+        /* For each vertex from Max, we keep track of the number of edges that
+         * go *to* F.  When a vertex is added to F, we simply look at its
+         * predecessors, and decrease their count.  This allows detecting
+         * efficiently which vertices should be added to F (i.e., when their
+         * counter is zero).
+         */
         auto decrease_preds =
           [this, &phase1_queue, &phase2_pq] (vertex_t v) {
           for (auto&& i : nrg_game.ins (v)) {
@@ -130,16 +131,12 @@ namespace potential {
             }
           }
         };
-        /*
-         We then iterate the two following steps illustrated in Figure 4. (A
-         complexity analysis is given below.)
-         */
+
         while (true) {
           C (pot_iter);
-          /*
-           1. If there is a Max vertex v /∈ F all of whose non-negative outgoing
-           edges vv′ lead to F, set En+(v) to be the maximal w(vv′) + En+(v′),
-           add v to F, and go back to 1.
+          /* 1. If there is a Max vertex v notin F, all of whose non-negative outgoing
+           * edges vv' lead to F, set, En+(v) to be the maximal w(vv') + En+(v'),
+           * add v to F, and go back to 1.
            */
           log ("Phase 1.\n");
           while (not phase1_queue.empty ()) {
@@ -161,13 +158,12 @@ namespace potential {
             decrease_preds (v);
           }
 
-          /*
-           2. Otherwise, let vv′ be an edge from VMin \ F to F (it is
-           necessarily positive) minimising w(vv′) + En+(v′); set En+(v) =
-           w(vv′) + En+(v′), add v to F and go back to 1. If there is no such
-           edge, terminate.
-           For step 2, one should store, for each v ∈ VMax \ F, the edge towards
-           F minimising w(vv′) + En+(v′) in a priority queue.
+          /* 2. Otherwise, let vv' be an edge from VMin \ F to F (it is
+           * necessarily positive) minimising w(vv') + En+(v'); set En+(v) =
+           * w(vv') + En+(v'), add v to F and go back to 1. If there is no such
+           * edge, terminate.  For step 2, one should store, for each v ∈ VMax \
+           * F, the edge towards F minimising w(vv') + En+(v') in a priority
+           * queue.
            */
           log ("Phase 2.\n");
           bool change = false;
@@ -187,12 +183,13 @@ namespace potential {
           if (not change)
             break;
         }
-        /*
-         After the iteration has terminated, there remains to deal with Fc,
-         which is the set of vertices from which Max can ensure to visit only
-         non-negative edges forever. Since the arena is assumed to be simple (no
-         simple cycle has weight zero) it holds that En+ is ∞ over Fc, and we
-         are done. */
+
+        /* After the iteration has terminated, there remains to deal with Fc,
+         * which is the set of vertices from which Max can ensure to visit only
+         * non-negative edges forever. Since the arena is assumed to be simple
+         * (no simple cycle has weight zero) it holds that En+ is ∞ over Fc, and
+         * we are done.
+         */
         to_backtrack.reserve (teller.undecided_vertices ().size ());
         to_backtrack.clear ();
         for (auto&& v : teller.undecided_vertices ()) {
@@ -205,6 +202,7 @@ namespace potential {
                 break;
               }
         }
+
         // In addition, backtrack the item
         while (not to_backtrack.empty ()) {
           C (pot_backtrack);
