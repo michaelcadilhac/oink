@@ -369,6 +369,7 @@ VOID_TASK_1(solve_loop, Oink*, s)
 void
 Oink::solveLoop()
 {
+    using namespace std::chrono;
     /**
      * Report chosen solver.
      */
@@ -393,7 +394,10 @@ Oink::solveLoop()
                 logger << "error parsing options: " << options << std::endl;
                 exit(-1);
             }
+            auto run_clock = high_resolution_clock::now();
             s->run();
+            double run_time = duration_cast<duration<double>>(high_resolution_clock::now () - run_clock).count();
+            logger << "run took " << run_time << " sec.\n";
 
             // flush the todo buffer
             flush();
@@ -410,7 +414,10 @@ Oink::solveLoop()
                 logger << "error parsing options: " << options << std::endl;
                 exit(-1);
             }
+            auto run_clock = high_resolution_clock::now();
             s->run();
+            double run_time = duration_cast<duration<double>>(high_resolution_clock::now () - run_clock).count();
+            logger << "run took " << run_time << " sec.\n";
 
             if (fullSolver) {
                 // trash the todo buffer
