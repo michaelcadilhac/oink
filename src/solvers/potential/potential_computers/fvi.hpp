@@ -88,8 +88,9 @@ namespace potential {
           return SwapRoles ? l < r : l > r;
         };
 
-        std::priority_queue<wv_t, std::vector<wv_t>, decltype (gt_or_lt)> phase2_pq (gt_or_lt);
+        auto phase2_pq = std::priority_queue<wv_t, std::vector<wv_t>, decltype (gt_or_lt)> { gt_or_lt };
 
+        // Extract the minimal transitions going from  Fc to F.
         for (auto&& v : teller.undecided_vertices ()) {
           if (not F[v]) continue;
           for (auto&& i : nrg_game.ins (v)) {
@@ -111,7 +112,7 @@ namespace potential {
         }
 
         /* For each vertex from Max, we keep track of the number of edges that
-         * go *to* F.  When a vertex is added to F, we simply look at its
+         * go *to* Fc.  When a vertex is added to F, we simply look at its
          * predecessors, and decrease their count.  This allows detecting
          * efficiently which vertices should be added to F (i.e., when their
          * counter is zero).
