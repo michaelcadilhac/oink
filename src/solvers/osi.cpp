@@ -16,6 +16,8 @@
 
 #include "osi.hpp"
 
+#define _INLINE_ __attribute__ ((always_inline))
+
 namespace pg {
 
   OSISolver::OSISolver (Oink& oink, Game& game) :

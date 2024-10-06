@@ -17,6 +17,8 @@
 
 #include "npp.hpp"
 
+#define _INLINE_ __attribute__((always_inline))
+
 namespace pg {
 
 NPPSolver::NPPSolver(Oink& oink, Game& game) :

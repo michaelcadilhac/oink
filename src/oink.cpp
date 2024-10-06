@@ -407,8 +407,11 @@ Oink::solveLoop()
             // disable all solved vertices
             disabled = game->getSolved();
 
+            auto construct_clock = high_resolution_clock::now();
             // solve current subgame
             auto s = Solvers::construct(*solver, *this, *game);
+            double construct_time = duration_cast<duration<double>>(high_resolution_clock::now () - construct_clock).count();
+            logger << "construct took " << construct_time << " sec.\n";
             bool fullSolver = true; // every solver is actually a full solver
             if (!s->parseOptions(options)) {
                 logger << "error parsing options: " << options << std::endl;

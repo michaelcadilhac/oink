@@ -51,7 +51,8 @@ class mutable_priority_queue {
     /** Sets the priority for the given key. If not present, it will be added,
      *  otherwise it will be updated. */
     void set (const Key& key, Priority&& priority, bool only_if_higher = false) {
-      if (key < id_to_heappos.size () and id_to_heappos[key] != SIZE_MAX) // This key is already in the pQ
+      if (static_cast<size_t> (key) < id_to_heappos.size () and
+          id_to_heappos[key] != SIZE_MAX) // This key is already in the pQ
         update (key, std::move (priority), only_if_higher);
       else
         push (key, std::move (priority));
@@ -70,7 +71,7 @@ class mutable_priority_queue {
     }
 
     void push (const Key& key, Priority&& priority) {
-      if (id_to_heappos.size () < key + 1)
+      if (id_to_heappos.size () < static_cast<size_t> (key) + 1)
         id_to_heappos.resize (key + 1, SIZE_MAX);
       assert (id_to_heappos[key] == SIZE_MAX);
       size_t n = heap.size ();
@@ -80,9 +81,9 @@ class mutable_priority_queue {
     }
 
     void update (const Key& key, Priority&& new_priority, bool only_if_higher = false) {
-      assert (key < id_to_heappos.size ());
+      assert (static_cast<size_t> (key) < id_to_heappos.size ());
       size_t heappos = id_to_heappos[key];
-      assert (heappos == SIZE_MAX);
+      assert (heappos != SIZE_MAX);
 
       Priority& priority = heap[heappos].priority;
 

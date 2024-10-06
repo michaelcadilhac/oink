@@ -24,8 +24,6 @@
 
 namespace pg {
 
-#define _INLINE_ __attribute__ ((always_inline))
-
   typedef boost::dynamic_bitset<unsigned long long> boost_bitset;
 
   class OSISolver : public Solver {
@@ -41,7 +39,7 @@ namespace pg {
 
       size_t n_nodes;
       int* strategy;
-      int pos;
+      size_t pos;
       uintqueue Bq;
       boost_bitset Bp;
       boost_bitset Bpp;

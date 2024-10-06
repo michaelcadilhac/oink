@@ -21,6 +21,10 @@
 #include "solvers/potential/potential_teller.hpp"
 #include "solvers/potential/potential_computers.hpp"
 
+#include "solvers/potential/stats.hpp"
+
+ADD_TIME_TO_STATS (compute);
+
 #ifdef NDEBUG
 # define log(T)
 #else
@@ -28,7 +32,6 @@
 #endif
 
 #define log_stat(T) do { std::cout << T; } while (0)
-#define log_stat(T)
 
 namespace pg {
   template <template <typename EG, typename PT> typename PotentialComputer>
@@ -60,12 +63,14 @@ namespace pg {
         log ("Infinity: " << nrg_game.get_infty () << std::endl);
         do {
           log (nrg_game << std::endl);
+          START_TIME (compute);
           computer.compute ();
+          STOP_TIME (compute);
           log ("Potential: " << computer << std::endl);
         } while (teller.reduce (computer.get_potential ()));
 
         log_stat ("solving: "
-                  << duration_cast<nanoseconds>(high_resolution_clock::now () - time_sol_beg) / 1ms << "\n");
+                  << duration_cast<milliseconds>(high_resolution_clock::now () - time_sol_beg) << "\n");
 
         auto&& pot = teller.get_potential ();
         for (auto&& v : nrg_game.vertices ()) {
@@ -88,6 +93,13 @@ namespace pg {
         log_stat ("stat: pot_iter = " << potential::stats::pot_iter << "\n");
         log_stat ("stat: pot_phase2 = " << potential::stats::pot_phase2 << "\n");
         log_stat ("stat: pot_backtrack = " << potential::stats::pot_backtrack << "\n");
+
+        log_stat ("timestat: compute = " << GET_TIME (compute) << "\n");
+        log_stat ("timestat: reduce = " << GET_TIME (reduce) << "\n");
+        log_stat ("timestat: reduce_1 = " << GET_TIME (reduce_1) << "\n");
+        log_stat ("timestat: reduce_2 = " << GET_TIME (reduce_2) << "\n");
+        log_stat ("timestat: reduce_3 = " << GET_TIME (reduce_3) << "\n");
+        log_stat ("timestat: reduce_update = " << GET_TIME (reduce_update) << "\n");
       }
     private:
       using weight_t    = gmp_weight_t;

@@ -5,6 +5,12 @@
 ADD_TO_STATS (eg_reduce);
 ADD_TO_STATS (eg_pot_update);
 
+ADD_TIME_TO_STATS (reduce);
+ADD_TIME_TO_STATS (reduce_1);
+ADD_TIME_TO_STATS (reduce_2);
+ADD_TIME_TO_STATS (reduce_3);
+ADD_TIME_TO_STATS (reduce_update);
+
 namespace potential {
   template <typename EnergyGame>
   class potential_teller {
@@ -28,34 +34,24 @@ namespace potential {
           potential.push_back (zero_number<typename weight_t::number_t> (*infty));
 
         undecided_verts = std::set (nrg_game.vertices ().begin (), nrg_game.vertices ().end ());
-        undecided_max_verts = std::set (nrg_game.max_vertices ().begin (), nrg_game.max_vertices ().end ());
-        undecided_min_verts = std::set (nrg_game.min_vertices ().begin (), nrg_game.min_vertices ().end ());
         // TODO: some nodes are already solved: flush them by backward propagation.
-      }
-
-      const auto& undecided_min_vertices () const {
-        return undecided_min_verts;
-      }
-
-      const auto& undecided_max_vertices () const {
-        return undecided_max_verts;
       }
 
       const auto& undecided_vertices () const {
         return undecided_verts;
       }
 
-      std::set<vertex_t> newly_decided,
-        newly_decided_max, newly_decided_min;
+      std::set<vertex_t> newly_decided;
 
       bool reduce (const potential_t& norm_pot) {
         C (eg_reduce);
-
+        START_TIME (reduce);
+        START_TIME (reduce_1);
+        START_TIME (reduce_2);
+        START_TIME (reduce_3);
         bool changed = false;
 
         newly_decided.clear ();
-        newly_decided_max.clear ();
-        newly_decided_min.clear ();
 
         for (auto&& v : undecided_verts) {
           if (not decided[v] and norm_pot[v] != 0) {
@@ -69,43 +65,34 @@ namespace potential {
               potential[v] += norm_pot[v];
             if (potential[v] >= infty or potential[v] <= minus_infty) {
               newly_decided.insert (v);
-              if (nrg_game.is_max (v))
-                newly_decided_max.insert (v);
-              else
-                newly_decided_min.insert (v);
               decided[v] = true;
             }
           }
         }
-
-        if (not changed)
+        STOP_TIME (reduce_1);
+        if (not changed) {
+          STOP_TIME (reduce);
+          STOP_TIME (reduce_1);
+          STOP_TIME (reduce_2);
+          STOP_TIME (reduce_3);
           // No need to update, we're done.
           return changed;
+        }
 
         // Remove decided nodes
         for (auto v : newly_decided)
           nrg_game.isolate_vertex (v);
-
+        STOP_TIME (reduce_2);
         std::set<vertex_t> result;
         std::set_difference (undecided_verts.begin(), undecided_verts.end(),
                              newly_decided.begin(), newly_decided.end(),
                              std::inserter (result, result.end()));
         std::swap (result, undecided_verts);
 
-        result.clear ();
-        std::set_difference (undecided_max_verts.begin(), undecided_max_verts.end(),
-                             newly_decided_max.begin(), newly_decided_max.end(),
-                             std::inserter (result, result.end()));
-        std::swap (result, undecided_max_verts);
-
-        result.clear ();
-        std::set_difference (undecided_min_verts.begin(), undecided_min_verts.end(),
-                             newly_decided_min.begin(), newly_decided_min.end(),
-                             std::inserter (result, result.end()));
-        std::swap (result, undecided_min_verts);
-
+        STOP_TIME (reduce_3);
         if (undecided_verts.empty ())
           changed = false;
+        START_TIME (reduce_update);
         for (auto&& v : undecided_verts)
           nrg_game.update_outs (
             v,
@@ -123,6 +110,8 @@ namespace potential {
                 neighbor.first -= norm_pot[v]; // two steps to avoid creating a number on the fly
               }
             });
+        STOP_TIME (reduce_update);
+        STOP_TIME (reduce);
         return changed;
       }
 

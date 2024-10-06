@@ -26,8 +26,8 @@ namespace potential {
       std::vector<bool> F;
       std::vector<vertex_t> strat;
       std::vector<size_t> nonneg_out_edges_to_Fc; // Nonzero entries will only
-                                                  // be for (max ^ SwapRoles)
-                                                  // vertices.
+      // be for (max ^ SwapRoles)
+      // vertices.
     public:
       potential_fvi_swap (const EnergyGame& nrg_game, const PotentialTeller& teller, logger_t& logger, int trace) :
         potential_computer<EnergyGame, PotentialTeller> (nrg_game, teller, logger, trace),
@@ -44,7 +44,7 @@ namespace potential {
 
         if ((SwapRoles ^ nrg_game.is_min (v)) and
             (SwapRoles ? teller.get_potential ()[v] > nrg_game.get_minus_infty ()
-                       : teller.get_potential ()[v] < nrg_game.get_infty ()))
+             : teller.get_potential ()[v] < nrg_game.get_infty ()))
           for (auto&& o : nrg_game.outs (v))
             if (SwapRoles ? (teller.get_potential ()[o.second] > nrg_game.get_minus_infty () and o.first >= 0)
                 : (teller.get_potential ()[o.second] < nrg_game.get_infty () and o.first <= 0))
@@ -87,26 +87,27 @@ namespace potential {
         auto phase2_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp)> (nrg_game.size ());
 
         // Extract the minimal transitions going from  Fc to F.
+        std::ranges::fill(nonneg_out_edges_to_Fc, 0);
         for (auto&& v : teller.undecided_vertices ()) {
-          if (not F[v]) continue;
-          for (auto&& i : nrg_game.ins (v)) {
-            if (not F[i.second] and not (nrg_game.is_max (i.second) ^ SwapRoles)) {
-               // Use a weight proxy to avoid duplication.
-              phase2_pq.set (i.second, weight_t::proxy (const_cast<weight_t&> (i.first)),
-                             true);
+          if (not F[v]) {
+            if (nrg_game.is_max (v) ^ SwapRoles) {
+              nonneg_out_edges_to_Fc[v] = 0;
+              for (auto&& o : nrg_game.outs (v))
+                if (not F[o.second] and (SwapRoles ? o.first <= 0 : o.first >= 0))
+                  nonneg_out_edges_to_Fc[v]++;
+              if (nonneg_out_edges_to_Fc[v] == 0)
+                phase1_queue.push (v);
             }
           }
-        }
-        std::ranges::fill(nonneg_out_edges_to_Fc, 0);
-
-        for (auto&& v : SwapRoles ? teller.undecided_min_vertices () : teller.undecided_max_vertices ()) {
-          if (F[v]) continue;
-          nonneg_out_edges_to_Fc[v] = 0;
-          for (auto&& o : nrg_game.outs (v))
-            if (not F[o.second] and (SwapRoles ? o.first <= 0 : o.first >= 0))
-              nonneg_out_edges_to_Fc[v]++;
-          if (nonneg_out_edges_to_Fc[v] == 0)
-            phase1_queue.push (v);
+          else {
+            for (auto&& i : nrg_game.ins (v)) {
+              if (not F[i.second] and not (nrg_game.is_max (i.second) ^ SwapRoles)) {
+                // Use a weight proxy to avoid duplication.
+                phase2_pq.set (i.second, weight_t::proxy (const_cast<weight_t&> (i.first)),
+                               true);
+              }
+            }
+          }
         }
 
         /* For each vertex from Max, we keep track of the number of edges that
@@ -117,19 +118,19 @@ namespace potential {
          */
         auto decrease_preds =
           [this, &phase1_queue, &phase2_pq] (vertex_t v) {
-          for (auto&& i : nrg_game.ins (v)) {
-            if (not (nrg_game.is_max (i.second) ^ SwapRoles) and not F[i.second]) {
-              weight_t w = weight_t::copy (i.first);
-              w += potential[v];
-              phase2_pq.set (i.second, weight_t::steal (w), true); //!! should be steal
+            for (auto&& i : nrg_game.ins (v)) {
+              if (not (nrg_game.is_max (i.second) ^ SwapRoles) and not F[i.second]) {
+                weight_t w = weight_t::copy (i.first);
+                w += potential[v];
+                phase2_pq.set (i.second, weight_t::steal (w), true); //!! should be steal
+              }
+              if (nonneg_out_edges_to_Fc[i.second] and (SwapRoles ? i.first <= 0 : i.first >= 0)) {
+                assert ((SwapRoles ^ nrg_game.is_max (i.second)) and not F[i.second]);
+                if (--nonneg_out_edges_to_Fc[i.second] == 0)
+                  phase1_queue.push (i.second);
+              }
             }
-            if (nonneg_out_edges_to_Fc[i.second] and (SwapRoles ? i.first <= 0 : i.first >= 0)) {
-              assert ((SwapRoles ^ nrg_game.is_max (i.second)) and not F[i.second]);
-              if (--nonneg_out_edges_to_Fc[i.second] == 0)
-                phase1_queue.push (i.second);
-            }
-          }
-        };
+          };
 
         while (true) {
           C (pot_iter);
