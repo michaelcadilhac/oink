@@ -101,6 +101,8 @@ namespace potential {
           }
         }
 
+        std::ranges::fill(nonneg_out_edges_to_Fc, 0);
+
         for (auto&& v : SwapRoles ? teller.undecided_min_vertices () : teller.undecided_max_vertices ()) {
           if (F[v]) continue;
           nonneg_out_edges_to_Fc[v] = 0;
@@ -204,7 +206,11 @@ namespace potential {
               }
         }
 
-        // In addition, backtrack the item
+        // This is reused to save a bit of memory.  It will be used for player
+        // min ^ SwapRoles, and it is already zero in these locations.
+        auto& out_edges_in_F = nonneg_out_edges_to_Fc;
+
+        // In addition, we compute the attractor of the newly discovered decided nodes
         while (not to_backtrack.empty ()) {
           C (pot_backtrack);
           auto v = to_backtrack.back ();
@@ -220,13 +226,9 @@ namespace potential {
               to_backtrack.push_back (i);
             }
             else {
-              bool all_out_decided = true;
-              for (auto&& io : nrg_game.outs (i))
-                if (F[io.second]) {
-                  all_out_decided = false;
-                  break;
-                }
-              if (all_out_decided) {
+              if (out_edges_in_F[i] == 0) // We've not seen that vertex yet
+                out_edges_in_F[i] = nrg_game.outs (i).size ();
+              if (--out_edges_in_F[i] == 0) { // All of its succ are out of F
                 F[i] = false;
                 potential[i] = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
                 to_backtrack.push_back (i);
