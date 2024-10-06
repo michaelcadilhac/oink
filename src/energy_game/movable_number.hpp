@@ -47,10 +47,18 @@ class movable_number {
     /// The returned \a movable_number does not own its number.
     static movable_number proxy (movable_number& other) { return movable_number (other, false); }
 
-    /// Steals ownership from another movable number, if it owned.
-    /// If the other number did not owned, this is the same as making a proxy.
-    /// At the end, \a other will not own.
+    /// Steals ownership from another movable number, which *must* be owned.
+    /// If the other number did not own, an assertion is triggered.
     static movable_number steal (movable_number& other) {
+      assert (other.owns);
+      other.owns = false;
+      return movable_number (other, true);
+    }
+
+    /// Steals ownership from another movable number, if it owned.
+    /// If the other number did not own, this is the same as making a proxy.
+    /// At the end, \a other will not own.
+    static movable_number steal_or_proxy (movable_number& other) {
       bool was_owned = other.owns; // take ownership if other had it
       other.owns = false;          // ensure that other won't destroy id
       return movable_number (other, was_owned);
