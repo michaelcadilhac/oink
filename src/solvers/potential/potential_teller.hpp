@@ -5,11 +5,11 @@
 ADD_TO_STATS (eg_reduce);
 ADD_TO_STATS (eg_pot_update);
 
-ADD_TIME_TO_STATS (reduce);
-ADD_TIME_TO_STATS (reduce_1);
-ADD_TIME_TO_STATS (reduce_2);
-ADD_TIME_TO_STATS (reduce_3);
-ADD_TIME_TO_STATS (reduce_update);
+ADD_TIME_TO_STATS (tm_reduce);
+ADD_TIME_TO_STATS (tm_reduce_update_pot);
+ADD_TIME_TO_STATS (tm_reduce_isolate);
+ADD_TIME_TO_STATS (tm_reduce_set_difference);
+ADD_TIME_TO_STATS (tm_reduce_update_edges);
 
 namespace potential {
   template <typename EnergyGame>
@@ -45,10 +45,9 @@ namespace potential {
 
       bool reduce (const potential_t& norm_pot) {
         C (eg_reduce);
-        START_TIME (reduce);
-        START_TIME (reduce_1);
-        START_TIME (reduce_2);
-        START_TIME (reduce_3);
+        START_TIME (tm_reduce_update_pot);
+        START_TIME (tm_reduce);
+
         bool changed = false;
 
         newly_decided.clear ();
@@ -69,30 +68,31 @@ namespace potential {
             }
           }
         }
-        STOP_TIME (reduce_1);
+        STOP_TIME (tm_reduce_update_pot);
         if (not changed) {
-          STOP_TIME (reduce);
-          STOP_TIME (reduce_1);
-          STOP_TIME (reduce_2);
-          STOP_TIME (reduce_3);
+          STOP_TIME (tm_reduce);
           // No need to update, we're done.
           return changed;
         }
 
+        START_TIME (tm_reduce_isolate);
         // Remove decided nodes
         for (auto v : newly_decided)
           nrg_game.isolate_vertex (v);
-        STOP_TIME (reduce_2);
+        STOP_TIME (tm_reduce_isolate);
+
+        START_TIME (tm_reduce_set_difference);
         std::set<vertex_t> result;
         std::set_difference (undecided_verts.begin(), undecided_verts.end(),
                              newly_decided.begin(), newly_decided.end(),
                              std::inserter (result, result.end()));
         std::swap (result, undecided_verts);
 
-        STOP_TIME (reduce_3);
+        STOP_TIME (tm_reduce_set_difference);
+
         if (undecided_verts.empty ())
           changed = false;
-        START_TIME (reduce_update);
+        START_TIME (tm_reduce_update_edges);
         for (auto&& v : undecided_verts)
           nrg_game.update_outs (
             v,
@@ -110,8 +110,8 @@ namespace potential {
                 neighbor.first -= norm_pot[v]; // two steps to avoid creating a number on the fly
               }
             });
-        STOP_TIME (reduce_update);
-        STOP_TIME (reduce);
+        STOP_TIME (tm_reduce_update_edges);
+        STOP_TIME (tm_reduce);
         return changed;
       }
 

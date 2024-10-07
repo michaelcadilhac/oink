@@ -94,12 +94,13 @@ namespace pg {
         log_stat ("stat: pot_phase2 = " << potential::stats::pot_phase2 << "\n");
         log_stat ("stat: pot_backtrack = " << potential::stats::pot_backtrack << "\n");
 
-        log_stat ("timestat: compute = " << GET_TIME (compute) << "\n");
-        log_stat ("timestat: reduce = " << GET_TIME (reduce) << "\n");
-        log_stat ("timestat: reduce_1 = " << GET_TIME (reduce_1) << "\n");
-        log_stat ("timestat: reduce_2 = " << GET_TIME (reduce_2) << "\n");
-        log_stat ("timestat: reduce_3 = " << GET_TIME (reduce_3) << "\n");
-        log_stat ("timestat: reduce_update = " << GET_TIME (reduce_update) << "\n");
+#define PRINT_TIME(Field) log_stat ("timestat: " #Field " = " << GET_TIME (Field) << "\n");
+        PRINT_TIME (compute);
+        PRINT_TIME (tm_reduce);
+        PRINT_TIME (tm_reduce_update_pot);
+        PRINT_TIME (tm_reduce_isolate);
+        PRINT_TIME (tm_reduce_set_difference);
+        PRINT_TIME (tm_reduce_update_edges);
       }
     private:
       using weight_t    = gmp_weight_t;
