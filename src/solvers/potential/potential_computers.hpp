@@ -6,15 +6,15 @@ namespace potential {
     protected:
       using weight_t = typename EnergyGame::weight_t;
       using potential_t = std::vector<weight_t>;
-      const EnergyGame&        nrg_game;
-      const PotentialTeller&   teller;
+      EnergyGame&              nrg_game;
+      PotentialTeller&         teller;
       potential_t              potential;
 
       logger_t& logger;
       int trace = 0;
     public:
-      potential_computer (const EnergyGame& ngame,
-                          const PotentialTeller& teller,
+      potential_computer (EnergyGame& ngame,
+                          PotentialTeller& teller,
                           logger_t& logger, int trace) :
         nrg_game (ngame), teller (teller), logger (logger), trace (trace) {
         potential.reserve (nrg_game.size ());

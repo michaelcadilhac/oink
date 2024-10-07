@@ -8,7 +8,7 @@ namespace potential {
       potential_fvi_swap<true, EnergyGame, PotentialTeller> fvi_swap;
       bool swap = true;
     public:
-      potential_fvi_alt (const EnergyGame& game, const PotentialTeller& teller, logger_t& logger, int trace) :
+      potential_fvi_alt (EnergyGame& game, PotentialTeller& teller, logger_t& logger, int trace) :
         potential_computer<EnergyGame, PotentialTeller> (game, teller, logger, trace),
         fvi (game, teller, logger, trace), fvi_swap (game, teller, logger, trace) {}
 

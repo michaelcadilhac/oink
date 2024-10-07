@@ -8,17 +8,7 @@ class energy_game;
 
 template <MovableNumber W>
 std::ostream& operator<< (std::ostream& os, const energy_game<W>& egame) {
-  os << "digraph G {" << std::endl;
-  for (auto&& v : egame.vertices ()) {
-    os << v << " [ shape=\"" << (egame.is_max (v) ? "box" : "circle")
-       << "\", label=\"" << v << "\"";
-    os << "];" << std::endl;
-    for (auto&& e : egame.outs (v))
-      os << v << " -> " << e.second << " [label=\"" << e.first << "\"];" << std::endl;
-  }
-  os << "}" << std::endl;
-
-  return os;
+  return egame.print (os);
 }
 
 template <MovableNumber W>
@@ -103,11 +93,11 @@ class energy_game {
       return not max_owned[v];
     }
 
-    const neighbors_t& outs (const vertex_t& v) const {
+    neighbors_t& outs (const vertex_t& v) {
       return out_neighbors[v];
     }
 
-    const neighbors_t& ins (const vertex_t& v) const {
+    neighbors_t& ins (const vertex_t& v) {
       return in_neighbors[v];
     }
 
@@ -172,5 +162,16 @@ class energy_game {
       return minus_infty;
     }
 
-    friend std::ostream& operator<<<> (std::ostream&, const energy_game&);
+    std::ostream& print (std::ostream& os) const {
+      os << "digraph G {" << std::endl;
+      for (auto&& v : vertices ()) {
+        os << v << " [ shape=\"" << (is_max (v) ? "box" : "circle")
+           << "\", label=\"" << v << "\"";
+        os << "];" << std::endl;
+        for (auto&& e : out_neighbors[v])
+          os << v << " -> " << e.second << " [label=\"" << e.first << "\"];" << std::endl;
+      }
+      os << "}" << std::endl;
+      return os;
+    }
 };

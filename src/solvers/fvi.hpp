@@ -40,7 +40,9 @@ namespace pg {
     public:
       FVISolver (Oink& oink, Game& game)  :
         Solver (oink, game),
-        nrg_game (this->game, logger, trace)
+        nrg_game (this->game, logger, trace),
+        teller (nrg_game),
+        computer (nrg_game, teller, logger, trace)
       { }
 
       virtual ~FVISolver () {}
@@ -49,9 +51,6 @@ namespace pg {
         potential::stats::stat_clearer::clear_stats ();
 
         using namespace std::literals; // enables literal suffixes, e.g. 24h, 1ms, 1s.
-
-        auto teller = potential::potential_teller (nrg_game);
-        auto computer = PotentialComputer (nrg_game, teller, logger, trace);
 
         START_TIME (tm_solving);
 
@@ -91,7 +90,9 @@ namespace pg {
         log_stat ("stat: pot_backtrack = " << potential::stats::pot_backtrack << "\n");
 
 #define PRINT_TIME(Field) log_stat ("timestat: " #Field " = " << GET_TIME (Field) << "\n");
+
         PRINT_TIME (compute);
+        PRINT_TIME (tm_teller_edge_search);
         PRINT_TIME (tm_reduce);
         PRINT_TIME (tm_reduce_update_pot);
         PRINT_TIME (tm_reduce_isolate);
@@ -100,7 +101,12 @@ namespace pg {
       }
     private:
       using weight_t    = gmp_weight_t;
-      energy_game<weight_t> nrg_game;
+      using energy_game_t = energy_game<weight_t>;
+      using teller_t = potential::potential_teller<energy_game_t>;
+
+      energy_game_t nrg_game;
+      teller_t teller;
+      PotentialComputer<energy_game_t, teller_t> computer;
   };
 }
 
