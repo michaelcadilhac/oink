@@ -24,6 +24,7 @@
 #include "solvers/potential/stats.hpp"
 
 ADD_TIME_TO_STATS (compute);
+ADD_TIME_TO_STATS (tm_solving);
 
 #ifdef NDEBUG
 # define log(T)
@@ -45,20 +46,14 @@ namespace pg {
       virtual ~FVISolver () {}
 
       virtual void run () {
-        using namespace std::chrono;
-        potential::stats::eg_pot_update = 0;
-        potential::stats::eg_reduce = 0;
-        potential::stats::pot_compute = 0;
-        potential::stats::pot_iter = 0;
-        potential::stats::pot_phase2 = 0;
-        potential::stats::pot_backtrack = 0;
+        potential::stats::stat_clearer::clear_stats ();
 
         using namespace std::literals; // enables literal suffixes, e.g. 24h, 1ms, 1s.
 
         auto teller = potential::potential_teller (nrg_game);
         auto computer = PotentialComputer (nrg_game, teller, logger, trace);
 
-        auto time_sol_beg = high_resolution_clock::now();
+        START_TIME (tm_solving);
 
         log ("Infinity: " << nrg_game.get_infty () << std::endl);
         do {
@@ -69,8 +64,9 @@ namespace pg {
           log ("Potential: " << computer << std::endl);
         } while (teller.reduce (computer.get_potential ()));
 
-        log_stat ("solving: "
-                  << duration_cast<milliseconds>(high_resolution_clock::now () - time_sol_beg) << "\n");
+        STOP_TIME (tm_solving);
+
+        log_stat ("solving: " << GET_TIME (tm_solving) << "\n");
 
         auto&& pot = teller.get_potential ();
         for (auto&& v : nrg_game.vertices ()) {
