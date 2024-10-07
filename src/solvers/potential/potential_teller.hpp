@@ -14,6 +14,10 @@ ADD_TIME_TO_STATS (tm_reduce_update_edges);
 
 namespace potential {
   template <typename EnergyGame>
+  requires requires (EnergyGame& g) {
+        { std::get<2> (*g.outs (0).begin ()) } -> std::same_as <size_t&>;  // has timestamp
+        { std::get<3> (*g.outs (0).begin ()) } -> std::same_as <typename EnergyGame::weight_t&>;  // has new weight
+  }
   class potential_teller {
       using weight_t = typename EnergyGame::weight_t;
       using potential_t = std::vector<weight_t>;
@@ -25,7 +29,6 @@ namespace potential {
       potential_t potential;
       std::set<vertex_t> undecided_verts;
 
-      std::vector<std::pair<size_t, std::optional<weight_t>>> edge_timestamps;
       std::vector<size_t> vert_timestamps;
 
       size_t time;
@@ -35,7 +38,6 @@ namespace potential {
                                              infty { ngame.get_infty () },
                                              minus_infty { ngame.get_minus_infty () },
                                              decided (ngame.size ()),
-                                             edge_timestamps (ngame.size () * ngame.size ()),
                                              vert_timestamps (ngame.size ()),
                                              time (1) {
         potential.reserve (nrg_game.size ());
@@ -50,37 +52,35 @@ namespace potential {
         return undecided_verts;
       }
 
-      weight_t& get_adjusted_weight (vertex_t p, weight_t& w, vertex_t q) {
-        START_TIME (tm_teller_edge_search);
-        auto& e_ts = edge_timestamps[p * nrg_game.size () + q];
+      weight_t& get_adjusted_weight (vertex_t p, weight_t& w, vertex_t q,
+                                     size_t& edge_timestamp, weight_t& adjusted_weight) {
         auto& p_ts = vert_timestamps[p];
         auto& q_ts = vert_timestamps[q];
-        STOP_TIME (tm_teller_edge_search);
 
-        if (e_ts.first > p_ts and e_ts.first > q_ts)
-          return *e_ts.second;
+        if (edge_timestamp > p_ts and edge_timestamp > q_ts)
+          return adjusted_weight;
 
         if ((p_ts == 0 and q_ts == 0) or potential[p] == potential[q]) {// original value
-          e_ts.first = std::max (p_ts, q_ts) + 1; // Time 1 is specifically reserved for initialization.
-          e_ts.second = weight_t::proxy (w);
+          edge_timestamp = std::max (p_ts, q_ts) + 1; // Time 1 is specifically reserved for initialization.
+          adjusted_weight = weight_t::proxy (w);
         }
         else  {
           if (potential[q] >= infty or potential[p] >= infty) {
-            e_ts.first = SIZE_MAX;
-            e_ts.second = infty;
+            edge_timestamp = SIZE_MAX;
+            adjusted_weight = infty;
           }
           else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
-            e_ts.first = SIZE_MAX;
-            e_ts.second = minus_infty;
+            edge_timestamp = SIZE_MAX;
+            adjusted_weight = minus_infty;
           }
           else {
-            e_ts.first = std::max (p_ts, q_ts) + 1;
-            e_ts.second = weight_t::copy (w);
-            *e_ts.second += potential[q];
-            *e_ts.second -= potential[p];
+            edge_timestamp = std::max (p_ts, q_ts) + 1;
+            adjusted_weight = weight_t::copy (w);
+            adjusted_weight += potential[q];
+            adjusted_weight -= potential[p];
           }
         }
-        return *e_ts.second;
+        return adjusted_weight;
       }
 
       bool is_decided (const vertex_t& v) { return decided[v]; }

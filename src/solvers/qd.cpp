@@ -377,7 +377,7 @@ namespace pg {
         BAtr[pos] = true;
 
         if (nrg_game.is_max (pos)) {
-          newsucc[pos] = nrg_game.outs (pos)[0].second;
+          newsucc[pos] = std::get<1> (nrg_game.outs (pos)[0]);
         }
       } else {
         if (nrg_game.is_min (pos)) {
