@@ -3,12 +3,25 @@
 #include <chrono>
 
 namespace potential::stats {
+  struct stat_clearer {
+      static inline std::vector<std::pair<void*, size_t>> fields;
+      stat_clearer (void* p, size_t s) { fields.emplace_back (p, s); }
+      static void clear_stats () {
+        for (auto [p, s] : fields) { std::memset (p, 0, s); }
+      }
+  };
 };
 
-#define ADD_TO_STATS(Field) namespace potential::stats { static size_t Field = 0; }
-#define ADD_TIME_TO_STATS(Field)                                     \
-  namespace potential::stats {                                       \
-    static std::chrono::high_resolution_clock::time_point Field;               \
+#define ADD_TO_STATS(Field)                                             \
+  namespace potential::stats {                                          \
+    static size_t Field = 0;                                            \
+    static stat_clearer clear_ ##Field {&Field, sizeof (Field)};        \
+  }
+
+#define ADD_TIME_TO_STATS(Field)                                        \
+  namespace potential::stats {                                          \
+    static std::chrono::high_resolution_clock::time_point Field;        \
+    static stat_clearer clear_ ##Field {&Field, sizeof (Field)};        \
   }
 
 #define C(Field) do { potential::stats::Field++; } while (0)
