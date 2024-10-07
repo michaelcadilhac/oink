@@ -15,8 +15,8 @@ ADD_TIME_TO_STATS (tm_reduce_update_edges);
 namespace potential {
   template <typename EnergyGame>
   requires requires (EnergyGame& g) {
-        { std::get<2> (*g.outs (0).begin ()) } -> std::same_as <size_t&>;  // has timestamp
-        { std::get<3> (*g.outs (0).begin ()) } -> std::same_as <typename EnergyGame::weight_t&>;  // has new weight
+    { std::get<2> (*g.outs (0).begin ()) } -> std::same_as <size_t&>;  // has timestamp
+    { std::get<3> (*g.outs (0).begin ()) } -> std::same_as <typename EnergyGame::weight_t&>;  // has new weight
   }
   class potential_teller {
       using weight_t = typename EnergyGame::weight_t;
@@ -29,7 +29,11 @@ namespace potential {
       potential_t potential;
       std::set<vertex_t> undecided_verts;
 
-      std::vector<size_t> vert_timestamps;
+      std::vector<std::tuple <size_t, size_t, size_t>> vert_timestamps;
+
+#define TS_LAST_DEC(TS) std::get<0> (TS)
+#define TS_LAST_INC(TS) std::get<1> (TS)
+#define TS_LAST_MOD(TS) std::get<2> (TS)
 
       size_t time;
 
@@ -52,34 +56,76 @@ namespace potential {
         return undecided_verts;
       }
 
+      weight_t& recompute_weight (vertex_t p, weight_t& w, vertex_t q,
+                                  size_t& edge_timestamp, weight_t& adjusted_weight) {
+        if (potential[q] >= infty or potential[p] >= infty) {
+          edge_timestamp = SIZE_MAX;
+          adjusted_weight = infty;
+        }
+        else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
+          edge_timestamp = SIZE_MAX;
+          adjusted_weight = minus_infty;
+        }
+        else {
+          edge_timestamp = time + 1;
+          adjusted_weight = weight_t::copy (w);
+          adjusted_weight += potential[q];
+          adjusted_weight -= potential[p];
+        }
+
+        return adjusted_weight;
+      }
+
+      bool is_adjusted_weight_strictly_positive (vertex_t p, weight_t& w, vertex_t q,
+                                                 size_t& edge_timestamp, weight_t& adjusted_weight) {
+        auto& p_ts = vert_timestamps[p];
+        auto& q_ts = vert_timestamps[q];
+
+        if (edge_timestamp > TS_LAST_MOD (p_ts) and edge_timestamp > TS_LAST_MOD (q_ts)) // no modification
+          return adjusted_weight > 0;
+
+        if ((TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0) or potential[p] == potential[q]) {
+          // original value
+          edge_timestamp = time + 1;
+          adjusted_weight = weight_t::proxy (w);
+          return adjusted_weight > 0;
+        }
+
+        // Needs recomputing.  Before we do, let's see if we can answer the
+        // question just with timestamps.
+        if (adjusted_weight > 0) {
+          // If the update + q - p has increased since edge_timestamp, then
+          // potential must stay positive.  This happens in particular if there
+          // were no decrease of q or increase of p since edge_timestamp.
+          if (TS_LAST_DEC (q_ts) < edge_timestamp and TS_LAST_INC (p_ts) < edge_timestamp)
+            return true;
+        }
+        else {
+          // If the update + q - p has decreased since edge_timestamp, then
+          // potential must stay <= 0.  This happens in particular if there
+          // were no increase of q or decrease of p since edge_timestamp.
+          if (TS_LAST_INC (q_ts) < edge_timestamp and TS_LAST_DEC (p_ts) < edge_timestamp)
+            return false;
+        }
+
+        // Needs actual recomputing
+        return recompute_weight (p, w, q, edge_timestamp, adjusted_weight) > 0;
+      }
+
       weight_t& get_adjusted_weight (vertex_t p, weight_t& w, vertex_t q,
                                      size_t& edge_timestamp, weight_t& adjusted_weight) {
         auto& p_ts = vert_timestamps[p];
         auto& q_ts = vert_timestamps[q];
 
-        if (edge_timestamp > p_ts and edge_timestamp > q_ts)
+        if (edge_timestamp > TS_LAST_MOD (p_ts) and edge_timestamp > TS_LAST_MOD (q_ts))
           return adjusted_weight;
 
-        if ((p_ts == 0 and q_ts == 0) or potential[p] == potential[q]) {// original value
-          edge_timestamp = std::max (p_ts, q_ts) + 1; // Time 1 is specifically reserved for initialization.
+        if ((TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0) or potential[p] == potential[q]) {// original value
+          edge_timestamp = time + 1; // Time 1 is specifically reserved for initialization.
           adjusted_weight = weight_t::proxy (w);
         }
-        else  {
-          if (potential[q] >= infty or potential[p] >= infty) {
-            edge_timestamp = SIZE_MAX;
-            adjusted_weight = infty;
-          }
-          else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
-            edge_timestamp = SIZE_MAX;
-            adjusted_weight = minus_infty;
-          }
-          else {
-            edge_timestamp = std::max (p_ts, q_ts) + 1;
-            adjusted_weight = weight_t::copy (w);
-            adjusted_weight += potential[q];
-            adjusted_weight -= potential[p];
-          }
-        }
+        else
+          recompute_weight (p, w, q, edge_timestamp, adjusted_weight);
         return adjusted_weight;
       }
 
@@ -99,15 +145,25 @@ namespace potential {
 
         for (auto&& v : undecided_verts) {
           if (not decided[v] and norm_pot[v] != 0) {
+            auto& ts = vert_timestamps[v];
             C (eg_pot_update);
-            vert_timestamps[v] = time;
+            TS_LAST_MOD (ts) = time;
             changed = true;
-            if (norm_pot[v] >= infty)
+            if (norm_pot[v] >= infty) {
               potential[v] = infty;
-            else if (norm_pot[v] <= minus_infty)
+              TS_LAST_INC (ts) = time;
+            }
+            else if (norm_pot[v] <= minus_infty) {
               potential[v] = minus_infty;
-            else
+              TS_LAST_DEC (ts) = time;
+            }
+            else {
               potential[v] += norm_pot[v];
+              if (norm_pot[v] > 0)
+                TS_LAST_INC (ts) = time;
+              else
+                TS_LAST_DEC (ts) = time;
+            }
             if (potential[v] >= infty or potential[v] <= minus_infty) {
               newly_decided.insert (v);
               decided[v] = true;
