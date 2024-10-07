@@ -39,26 +39,29 @@ namespace potential {
       }
 
     private:
-      weight_t& W (vertex_t src, std::tuple<weight_t, vertex_t, size_t, weight_t>& wv) {
+      weight_t& W (vertex_t src, std::tuple<weight_t, vertex_t, size_t, weight_t, int32_t>& wv) {
         return teller.get_adjusted_weight (src, std::get<0> (wv), std::get<1> (wv),
-                                           std::get<2> (wv), std::get<3> (wv));
+                                           std::get<2> (wv), std::get<3> (wv),
+                                           std::get<4> (wv));
       }
 
-      weight_t& W (std::tuple<weight_t, vertex_t, size_t, weight_t>& wv, vertex_t dst) {
+      weight_t& W (std::tuple<weight_t, vertex_t, size_t, weight_t, int32_t>& wv, vertex_t dst) {
         return teller.get_adjusted_weight (std::get<1> (wv), std::get<0> (wv), dst,
-                                           std::get<2> (wv), std::get<3> (wv));
+                                           std::get<2> (wv), std::get<3> (wv),
+                                           std::get<4> (wv));
       }
 
-      bool WP (vertex_t src, std::tuple<weight_t, vertex_t, size_t, weight_t>& wv) {
-        return teller.is_adjusted_weight_strictly_positive (
-          src, std::get<0> (wv), std::get<1> (wv),
-          std::get<2> (wv), std::get<3> (wv));
+      int32_t WS (vertex_t src, std::tuple<weight_t, vertex_t, size_t, weight_t, int32_t>& wv) {
+        return teller.get_adjusted_weight_sign (src, std::get<0> (wv), std::get<1> (wv),
+                                                std::get<2> (wv), std::get<3> (wv),
+                                                std::get<4> (wv));
       }
 
-      bool WP (std::tuple<weight_t, vertex_t, size_t, weight_t>& wv, vertex_t dst) {
-        return teller.is_adjusted_weight_strictly_positive (
+      int32_t WS (std::tuple<weight_t, vertex_t, size_t, weight_t, int32_t>& wv, vertex_t dst) {
+        return teller.get_adjusted_weight_sign (
           std::get<1> (wv), std::get<0> (wv), dst,
-          std::get<2> (wv), std::get<3> (wv));
+          std::get<2> (wv), std::get<3> (wv),
+          std::get<4> (wv));
       }
 
     public:
@@ -74,9 +77,8 @@ namespace potential {
              : teller.get_potential ()[v] < nrg_game.get_infty ()))
           for (auto&& o : nrg_game.outs (v))
             if (SwapRoles ?
-                (teller.get_potential ()[State (o)] > nrg_game.get_minus_infty () and
-                 (WP (v, o) or W (v, o) == 0))
-                : (teller.get_potential ()[State (o)] < nrg_game.get_infty () and not (WP (v, o))))
+                (teller.get_potential ()[State (o)] > nrg_game.get_minus_infty () and WS (v, o) >= 0)
+                : (teller.get_potential ()[State (o)] < nrg_game.get_infty () and WS (v, o) <= 0))
               return State (o);
         return std::nullopt;
       }
@@ -101,9 +103,9 @@ namespace potential {
 
         for (auto&& v : teller.undecided_vertices ()) {
           if (SwapRoles ^ nrg_game.is_max (v))
-            F[v] = std::ranges::all_of (nrg_game.outs (v), [this, &v] (auto& x) { return SwapRoles ? WP (v, x) : ((not WP (v, x)) and W (v, x) != 0); });
+            F[v] = std::ranges::all_of (nrg_game.outs (v), [this, &v] (auto& x) { return SwapRoles ? WS (v, x) > 0 : WS (v, x) < 0; });
           else
-            F[v] = std::ranges::any_of (nrg_game.outs (v), [this, &v] (auto& x) { return SwapRoles ? WP (v, x) : ((not WP (v, x)) and W (v, x) != 0); });
+            F[v] = std::ranges::any_of (nrg_game.outs (v), [this, &v] (auto& x) { return SwapRoles ? WS (v, x) > 0 : WS (v, x) < 0; });
           if (F[v]) {
             potential[v] = zero_number (*nrg_game.get_infty ());
             log ("Putting " << v << " in F, with pot 0.\n");
@@ -121,7 +123,7 @@ namespace potential {
             if (nrg_game.is_max (v) ^ SwapRoles) {
               nonneg_out_edges_to_Fc[v] = 0;
               for (auto&& o : nrg_game.outs (v))
-                if (not F[State (o)] and (SwapRoles ? not WP (v, o) : WP (v, o) or W (v, o) == 0))
+                if (not F[State (o)] and (SwapRoles ? WS (v, o) <= 0 : WS (v, o) >= 0))
                   nonneg_out_edges_to_Fc[v]++;
               if (nonneg_out_edges_to_Fc[v] == 0)
                 phase1_queue.push (v);
@@ -152,7 +154,7 @@ namespace potential {
                 w += potential[v];
                 phase2_pq.set (State (i), weight_t::steal (w), true); //!! should be steal
               }
-              if (nonneg_out_edges_to_Fc[State (i)] and (SwapRoles ? not WP (i, v) : WP (i, v) or W (i, v) == 0)) {
+              if (nonneg_out_edges_to_Fc[State (i)] and (SwapRoles ? WS (i, v) <= 0 : WS (i, v) >= 0)) {
                 assert ((SwapRoles ^ nrg_game.is_max (State (i))) and not F[State (i)]);
                 if (--nonneg_out_edges_to_Fc[State (i)] == 0)
                   phase1_queue.push (State (i));
@@ -175,7 +177,7 @@ namespace potential {
             potential[v] = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
             for (auto&& o : nrg_game.outs (v)) {
               if (teller.is_decided (State (o))) continue;
-              if (SwapRoles ? WP (v, o) : not WP (v, o) and W (v, o) != 0) continue;
+              if (SwapRoles ? WS (v, o) > 0 : WS (v, o) < 0) continue;
               assert (F[State (o)]);
               if (SwapRoles)
                 set_if_plus_smaller (*potential[v], *W (v, o), *potential[State (o)]);
@@ -226,7 +228,7 @@ namespace potential {
           to_backtrack.push_back (v);
           if ((SwapRoles ^ nrg_game.is_max (v)) and strat[v] == -1) // Find a strategy
             for (auto&& o : nrg_game.outs (v))
-              if (not F[State (o)] and (SwapRoles ? not WP (v, o) : WP (v, o) or W (v, o) == 0)) {
+              if (not F[State (o)] and (SwapRoles ? WS (v, o) <= 0 : WS (v, o) >= 0)) {
                 strat[v] = State (o);
                 break;
               }

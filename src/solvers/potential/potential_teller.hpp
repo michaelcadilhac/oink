@@ -4,6 +4,8 @@
 
 ADD_TO_STATS (eg_reduce);
 ADD_TO_STATS (eg_pot_update);
+ADD_TO_STATS (pot_sign);
+ADD_TO_STATS (pot_sign_recompute);
 
 ADD_TIME_TO_STATS (tm_teller_edge_search);
 ADD_TIME_TO_STATS (tm_reduce);
@@ -57,75 +59,86 @@ namespace potential {
       }
 
       weight_t& recompute_weight (vertex_t p, weight_t& w, vertex_t q,
-                                  size_t& edge_timestamp, weight_t& adjusted_weight) {
+                                  size_t& edge_timestamp, weight_t& adjusted_weight,
+                                  int32_t& sign) {
         if (potential[q] >= infty or potential[p] >= infty) {
           edge_timestamp = SIZE_MAX;
           adjusted_weight = infty;
+          sign = 1;
         }
         else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
           edge_timestamp = SIZE_MAX;
           adjusted_weight = minus_infty;
+          sign = -1;
         }
         else {
           edge_timestamp = time + 1;
           adjusted_weight = weight_t::copy (w);
           adjusted_weight += potential[q];
           adjusted_weight -= potential[p];
+          sign = (*adjusted_weight).sign ();
         }
 
         return adjusted_weight;
       }
 
-      bool is_adjusted_weight_strictly_positive (vertex_t p, weight_t& w, vertex_t q,
-                                                 size_t& edge_timestamp, weight_t& adjusted_weight) {
+      int32_t get_adjusted_weight_sign (vertex_t p, weight_t& w, vertex_t q,
+                                        size_t& edge_timestamp, weight_t& adjusted_weight,
+                                        int32_t& sign) {
         auto& p_ts = vert_timestamps[p];
         auto& q_ts = vert_timestamps[q];
 
-        if (edge_timestamp > TS_LAST_MOD (p_ts) and edge_timestamp > TS_LAST_MOD (q_ts)) // no modification
-          return adjusted_weight > 0;
+        C (pot_sign);
 
-        if ((TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0) or potential[p] == potential[q]) {
+        if (edge_timestamp > TS_LAST_MOD (p_ts) and edge_timestamp > TS_LAST_MOD (q_ts)) // no modification
+          return sign;
+
+        if (TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0) {
           // original value
           edge_timestamp = time + 1;
           adjusted_weight = weight_t::proxy (w);
-          return adjusted_weight > 0;
+          sign = (*adjusted_weight).sign ();
+          return sign;
         }
 
         // Needs recomputing.  Before we do, let's see if we can answer the
         // question just with timestamps.
-        if (adjusted_weight > 0) {
+        if (sign > 0) {
           // If the update + q - p has increased since edge_timestamp, then
           // potential must stay positive.  This happens in particular if there
           // were no decrease of q or increase of p since edge_timestamp.
           if (TS_LAST_DEC (q_ts) < edge_timestamp and TS_LAST_INC (p_ts) < edge_timestamp)
-            return true;
+            return sign;
         }
-        else {
+        else if (sign < 0) {
           // If the update + q - p has decreased since edge_timestamp, then
           // potential must stay <= 0.  This happens in particular if there
           // were no increase of q or decrease of p since edge_timestamp.
           if (TS_LAST_INC (q_ts) < edge_timestamp and TS_LAST_DEC (p_ts) < edge_timestamp)
-            return false;
+            return sign;
         }
 
+        C (pot_sign_recompute);
         // Needs actual recomputing
-        return recompute_weight (p, w, q, edge_timestamp, adjusted_weight) > 0;
+        recompute_weight (p, w, q, edge_timestamp, adjusted_weight, sign);
+        return sign;
       }
 
       weight_t& get_adjusted_weight (vertex_t p, weight_t& w, vertex_t q,
-                                     size_t& edge_timestamp, weight_t& adjusted_weight) {
+                                     size_t& edge_timestamp, weight_t& adjusted_weight, int32_t& sign) {
         auto& p_ts = vert_timestamps[p];
         auto& q_ts = vert_timestamps[q];
 
         if (edge_timestamp > TS_LAST_MOD (p_ts) and edge_timestamp > TS_LAST_MOD (q_ts))
           return adjusted_weight;
 
-        if ((TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0) or potential[p] == potential[q]) {// original value
+        if (TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0) {
           edge_timestamp = time + 1; // Time 1 is specifically reserved for initialization.
           adjusted_weight = weight_t::proxy (w);
+          sign = (*adjusted_weight).sign ();
         }
         else
-          recompute_weight (p, w, q, edge_timestamp, adjusted_weight);
+          recompute_weight (p, w, q, edge_timestamp, adjusted_weight, sign);
         return adjusted_weight;
       }
 

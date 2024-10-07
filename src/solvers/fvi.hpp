@@ -89,6 +89,10 @@ namespace pg {
         log_stat ("stat: pot_phase2 = " << potential::stats::pot_phase2 << "\n");
         log_stat ("stat: pot_backtrack = " << potential::stats::pot_backtrack << "\n");
 
+        log_stat ("stat: pot_sign = " << potential::stats::pot_sign << "\n");
+        log_stat ("stat: pot_sign_recompute = " << potential::stats::pot_sign_recompute << "\n");
+
+
 #define PRINT_TIME(Field) log_stat ("timestat: " #Field " = " << GET_TIME (Field) << "\n");
 
         PRINT_TIME (compute);
@@ -102,7 +106,7 @@ namespace pg {
     private:
       using weight_t    = gmp_weight_t;
       // The energy game has two extra pieces of info for the potiential teller.
-      using energy_game_t = energy_game<weight_t, size_t, weight_t>;
+      using energy_game_t = energy_game<weight_t, size_t, weight_t, int32_t>;
       using teller_t = potential::potential_teller<energy_game_t>;
 
       energy_game_t nrg_game;
