@@ -132,7 +132,8 @@ class energy_game {
         auto pos = std::find_if (in.begin (), in.end (),
                                  [&v] (auto& x) { return x.second == v; });
         assert (pos != in.end ());
-        in.erase (pos);
+        std::swap (*pos, in.back ());
+        in.pop_back ();
       }
       out_neighbors[v].clear ();
       for (auto& p : in_neighbors[v]) {
@@ -141,7 +142,8 @@ class energy_game {
         auto pos = std::find_if (out.begin (), out.end (),
                                  [&v] (auto& x) { return x.second == v; });
         assert (pos != out.end ());
-        out.erase (pos);
+        std::swap (*pos, out.back ());
+        out.pop_back ();
       }
       in_neighbors[v].clear ();
     }
