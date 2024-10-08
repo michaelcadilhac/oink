@@ -18,8 +18,12 @@ ADD_TO_STATS (pot_backtrack);
 
 namespace potential {
   template <bool SwapRoles, typename EnergyGame, typename PotentialTeller>
+  requires // checks that EnergyGame was defined with extra info on the edges
+    std::same_as <std::tuple_element_t<2, typename EnergyGame::neighbors_t::value_type>,
+                  typename PotentialTeller::extra_edge_info_t>
   class potential_fvi_swap : public potential_computer<EnergyGame, PotentialTeller> {
       using weight_t = EnergyGame::weight_t;
+      using extra_edge_info_t = PotentialTeller::extra_edge_info_t;
       using potential_computer<EnergyGame, PotentialTeller>::nrg_game;
       using potential_computer<EnergyGame, PotentialTeller>::teller;
       using potential_computer<EnergyGame, PotentialTeller>::potential;
@@ -39,14 +43,12 @@ namespace potential {
       }
 
     private:
-      weight_t& W (vertex_t src, std::tuple<weight_t, vertex_t, size_t, weight_t>& wv) {
-        return teller.get_adjusted_weight (src, std::get<0> (wv), std::get<1> (wv),
-                                           std::get<2> (wv), std::get<3> (wv));
+      weight_t& W (vertex_t src, std::tuple<weight_t, vertex_t, extra_edge_info_t>& wv) {
+        return teller.get_adjusted_weight (src, std::get<0> (wv), std::get<1> (wv), std::get<2> (wv));
       }
 
-      weight_t& W (std::tuple<weight_t, vertex_t, size_t, weight_t>& wv, vertex_t dst) {
-        return teller.get_adjusted_weight (std::get<1> (wv), std::get<0> (wv), dst,
-                                           std::get<2> (wv), std::get<3> (wv));
+      weight_t& W (std::tuple<weight_t, vertex_t, extra_edge_info_t>& wv, vertex_t dst) {
+        return teller.get_adjusted_weight (std::get<1> (wv), std::get<0> (wv), dst, std::get<2> (wv));
       }
 
     public:
