@@ -105,8 +105,8 @@ namespace pg {
       }
     private:
       using weight_t    = gmp_weight_t;
-      // The energy game has two extra pieces of info for the potiential teller.
-      using energy_game_t = energy_game<weight_t, size_t, weight_t, int32_t>;
+      // The energy game has two extra pieces of info for the potential teller.
+      using energy_game_t = energy_game<weight_t, potential::extra_edge_info<weight_t>>;
       using teller_t = potential::potential_teller<energy_game_t>;
 
       energy_game_t nrg_game;

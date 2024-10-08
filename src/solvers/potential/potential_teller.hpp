@@ -15,15 +15,21 @@ ADD_TIME_TO_STATS (tm_reduce_set_difference);
 ADD_TIME_TO_STATS (tm_reduce_update_edges);
 
 namespace potential {
+  template <MovableNumber W>
+  struct extra_edge_info {
+      W adjusted_weight;
+      size_t timestamp;
+      int32_t sign;
+  };
+
   template <typename EnergyGame>
-  requires requires (EnergyGame& g) {
-    { std::get<2> (*g.outs (0).begin ()) } -> std::same_as <size_t&>;  // has timestamp
-    { std::get<3> (*g.outs (0).begin ()) } -> std::same_as <typename EnergyGame::weight_t&>;  // has new weight
-  }
   class potential_teller {
+    public:
       using weight_t = typename EnergyGame::weight_t;
       using potential_t = std::vector<weight_t>;
+      using extra_edge_info_t = extra_edge_info<weight_t>;
 
+    private:
       EnergyGame& nrg_game;
       const weight_t& infty, minus_infty;
       std::vector<bool>  decided;
@@ -58,88 +64,88 @@ namespace potential {
         return undecided_verts;
       }
 
-      weight_t& recompute_weight (vertex_t p, weight_t& w, vertex_t q,
-                                  size_t& edge_timestamp, weight_t& adjusted_weight,
-                                  int32_t& sign) {
-        if (potential[q] >= infty or potential[p] >= infty) {
-          edge_timestamp = SIZE_MAX;
-          adjusted_weight = infty;
-          sign = 1;
-        }
-        else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
-          edge_timestamp = SIZE_MAX;
-          adjusted_weight = minus_infty;
-          sign = -1;
-        }
-        else {
-          edge_timestamp = time + 1;
-          adjusted_weight = weight_t::copy (w);
-          adjusted_weight += potential[q];
-          adjusted_weight -= potential[p];
-          sign = (*adjusted_weight).sign ();
-        }
-
-        return adjusted_weight;
+    private:
+      void initialize_adjusted_weight (weight_t& w, extra_edge_info_t& ei) {
+        ei.timestamp = time + 1;
+        ei.adjusted_weight = weight_t::proxy (w);
+        ei.sign = (*ei.adjusted_weight).sign ();
       }
 
-      int32_t get_adjusted_weight_sign (vertex_t p, weight_t& w, vertex_t q,
-                                        size_t& edge_timestamp, weight_t& adjusted_weight,
-                                        int32_t& sign) {
+      weight_t& recompute_weight (vertex_t p, weight_t& w, vertex_t q,
+                                  extra_edge_info_t& ei) {
+        if (potential[q] >= infty or potential[p] >= infty) {
+          ei.timestamp = SIZE_MAX;
+          ei.adjusted_weight = infty;
+          ei.sign = 1;
+        }
+        else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
+          ei.timestamp = SIZE_MAX;
+          ei.adjusted_weight = minus_infty;
+          ei.sign = -1;
+        }
+        else {
+          ei.timestamp = time + 1;
+          ei.adjusted_weight = weight_t::copy (w);
+          ei.adjusted_weight += potential[q];
+          ei.adjusted_weight -= potential[p];
+          ei.sign = (*ei.adjusted_weight).sign ();
+        }
+
+        return ei.adjusted_weight;
+      }
+
+    public:
+
+      int32_t get_adjusted_weight_sign (vertex_t p, weight_t& w, vertex_t q, extra_edge_info_t& ei) {
         auto& p_ts = vert_timestamps[p];
         auto& q_ts = vert_timestamps[q];
 
         C (pot_sign);
 
-        if (edge_timestamp > TS_LAST_MOD (p_ts) and edge_timestamp > TS_LAST_MOD (q_ts)) // no modification
-          return sign;
+        if (ei.timestamp > TS_LAST_MOD (p_ts) and ei.timestamp > TS_LAST_MOD (q_ts)) // no modification
+          return ei.sign;
 
         if (TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0) {
           // original value
-          edge_timestamp = time + 1;
-          adjusted_weight = weight_t::proxy (w);
-          sign = (*adjusted_weight).sign ();
-          return sign;
+          initialize_adjusted_weight (w, ei);
+          return ei.sign;
         }
 
         // Needs recomputing.  Before we do, let's see if we can answer the
         // question just with timestamps.
-        if (sign > 0) {
-          // If the update + q - p has increased since edge_timestamp, then
+        if (ei.sign > 0) {
+          // If the update + q - p has increased since ei.timestamp, then
           // potential must stay positive.  This happens in particular if there
-          // were no decrease of q or increase of p since edge_timestamp.
-          if (TS_LAST_DEC (q_ts) < edge_timestamp and TS_LAST_INC (p_ts) < edge_timestamp)
-            return sign;
+          // were no decrease of q or increase of p since ei.timestamp.
+          if (TS_LAST_DEC (q_ts) < ei.timestamp and TS_LAST_INC (p_ts) < ei.timestamp)
+            return ei.sign;
         }
-        else if (sign < 0) {
-          // If the update + q - p has decreased since edge_timestamp, then
+        else if (ei.sign < 0) {
+          // If the update + q - p has decreased since ei.timestamp, then
           // potential must stay <= 0.  This happens in particular if there
-          // were no increase of q or decrease of p since edge_timestamp.
-          if (TS_LAST_INC (q_ts) < edge_timestamp and TS_LAST_DEC (p_ts) < edge_timestamp)
-            return sign;
+          // were no increase of q or decrease of p since ei.timestamp.
+          if (TS_LAST_INC (q_ts) < ei.timestamp and TS_LAST_DEC (p_ts) < ei.timestamp)
+            return ei.sign;
         }
 
         C (pot_sign_recompute);
         // Needs actual recomputing
-        recompute_weight (p, w, q, edge_timestamp, adjusted_weight, sign);
-        return sign;
+        recompute_weight (p, w, q, ei);
+        return ei.sign;
       }
 
-      weight_t& get_adjusted_weight (vertex_t p, weight_t& w, vertex_t q,
-                                     size_t& edge_timestamp, weight_t& adjusted_weight, int32_t& sign) {
+      weight_t& get_adjusted_weight (vertex_t p, weight_t& w, vertex_t q, extra_edge_info_t& ei) {
         auto& p_ts = vert_timestamps[p];
         auto& q_ts = vert_timestamps[q];
 
-        if (edge_timestamp > TS_LAST_MOD (p_ts) and edge_timestamp > TS_LAST_MOD (q_ts))
-          return adjusted_weight;
+        if (ei.timestamp > TS_LAST_MOD (p_ts) and ei.timestamp > TS_LAST_MOD (q_ts))
+          return ei.adjusted_weight;
 
-        if (TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0) {
-          edge_timestamp = time + 1; // Time 1 is specifically reserved for initialization.
-          adjusted_weight = weight_t::proxy (w);
-          sign = (*adjusted_weight).sign ();
-        }
+        if (TS_LAST_MOD (p_ts) == 0 and TS_LAST_MOD (q_ts) == 0)
+          initialize_adjusted_weight (w, ei);
         else
-          recompute_weight (p, w, q, edge_timestamp, adjusted_weight, sign);
-        return adjusted_weight;
+          recompute_weight (p, w, q, ei);
+        return ei.adjusted_weight;
       }
 
       bool is_decided (const vertex_t& v) { return decided[v]; }
@@ -211,3 +217,6 @@ namespace potential {
       }
   };
 }
+#undef TS_LAST_DEC
+#undef TS_LAST_INC
+#undef TS_LAST_MOD

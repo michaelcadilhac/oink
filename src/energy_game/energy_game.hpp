@@ -172,7 +172,7 @@ class energy_game {
     }
 };
 
-template <MovableNumber W>
-std::ostream& operator<< (std::ostream& os, const energy_game<W>& egame) {
+template <MovableNumber W, typename... ExtraEdgeInfo>
+std::ostream& operator<< (std::ostream& os, const energy_game<W, ExtraEdgeInfo...>& egame) {
   return egame.print (os);
 }
