@@ -23,7 +23,7 @@ namespace potential {
                   typename PotentialTeller::extra_edge_info_t>
   class potential_fvi_swap : public potential_computer<EnergyGame, PotentialTeller> {
       using weight_t = EnergyGame::weight_t;
-      using extra_edge_info_t = PotentialTeller::extra_edge_info_t;
+      using neighbor_t = typename EnergyGame::neighbors_t::value_type;
       using potential_computer<EnergyGame, PotentialTeller>::nrg_game;
       using potential_computer<EnergyGame, PotentialTeller>::teller;
       using potential_computer<EnergyGame, PotentialTeller>::potential;
@@ -43,11 +43,11 @@ namespace potential {
       }
 
     private:
-      weight_t& W (vertex_t src, std::tuple<weight_t, vertex_t, extra_edge_info_t>& wv) {
+      weight_t& W (vertex_t src, neighbor_t& wv) {
         return teller.get_adjusted_weight (src, std::get<0> (wv), std::get<1> (wv), std::get<2> (wv));
       }
 
-      weight_t& W (std::tuple<weight_t, vertex_t, extra_edge_info_t>& wv, vertex_t dst) {
+      weight_t& W (neighbor_t& wv, vertex_t dst) {
         return teller.get_adjusted_weight (std::get<1> (wv), std::get<0> (wv), dst, std::get<2> (wv));
       }
 
