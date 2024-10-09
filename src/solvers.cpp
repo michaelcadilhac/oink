@@ -90,6 +90,12 @@ Solvers::Solvers()
         (oink, game);
     });
 
+    _add("downsets-vec_or_kd", "downsets-vec_or_kd", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<
+        DownsetsSolver<posets::downsets::vector_or_kdtree_backed<posets::vectors::vector_backed<int16_t>>>>
+        (oink, game);
+    });
+
 }
 
 void

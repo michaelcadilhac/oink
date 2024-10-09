@@ -101,7 +101,7 @@ namespace pg {
             // previous for loop found that cur[vert] is included in
             // out.
             // TODO document
-            out.intersect_with (cur[vert]);
+            out.intersect_with (std::move (cur[vert]));
             cur[vert] = std::move (out);
             //cur[vert].intersect_with (downset_t (std::move (out)));
           }
