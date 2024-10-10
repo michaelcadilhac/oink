@@ -32,7 +32,6 @@ ADD_TIME_TO_STATS (tm_solving);
 # define log(T) do { if (this->trace >= 1) { this->logger << T; } } while (0)
 #endif
 
-#define log_stat(T) do { std::cout << T; } while (0)
 
 namespace pg {
   template <template <typename EG, typename PT> typename PotentialComputer>
@@ -48,7 +47,7 @@ namespace pg {
       virtual ~FVISolver () {}
 
       virtual void run () {
-        potential::stats::stat_clearer::clear_stats ();
+        CLEAR_STATS;
 
         using namespace std::literals; // enables literal suffixes, e.g. 24h, 1ms, 1s.
 
