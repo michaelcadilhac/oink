@@ -80,9 +80,23 @@ namespace potential {
           }
         }
 
-        std::queue<vertex_t> phase1_queue;
-        auto comp = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
-        auto phase2_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp)> (nrg_game.size ());
+        auto comp1 = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 > w2 : w1 < w2; };
+        auto phase1_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp1)> (nrg_game.size ());
+        auto comp2 = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
+        auto phase2_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp2)> (nrg_game.size ());
+
+        auto add_vertex_to_phase1_pq = [this, &phase1_pq] (vertex_t v) {
+          weight_t max_succ = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
+          for (auto&& o : nrg_game.outs (v)) {
+            if (not F[o.second]) continue;
+
+            if (SwapRoles)
+              set_if_plus_smaller (*max_succ, *o.first, *potential[o.second]);
+            else
+              set_if_plus_larger (*max_succ, *o.first, *potential[o.second]);
+          }
+          phase1_pq.set (v, std::move (max_succ), true);
+        };
 
         // Extract the minimal transitions going from  Fc to F.
         std::ranges::fill(nonneg_out_edges_to_Fc, 0);
@@ -94,7 +108,7 @@ namespace potential {
                 if (not F[o.second] and (SwapRoles ? o.first <= 0 : o.first >= 0))
                   nonneg_out_edges_to_Fc[v]++;
               if (nonneg_out_edges_to_Fc[v] == 0)
-                phase1_queue.push (v);
+                add_vertex_to_phase1_pq (v);
             }
           }
           else {
@@ -115,18 +129,24 @@ namespace potential {
          * counter is zero).
          */
         auto decrease_preds =
-          [this, &phase1_queue, &phase2_pq] (vertex_t v) {
+          [this, &phase1_pq, &phase2_pq, &add_vertex_to_phase1_pq] (vertex_t v) {
             for (auto&& i : nrg_game.ins (v)) {
-              if (not (nrg_game.is_max (i.second) ^ SwapRoles) and not F[i.second]) {
+              if (F[i.second]) continue;
+
+              if (nrg_game.is_max (i.second) ^ SwapRoles) { // Predecessor is Max
+                if (nonneg_out_edges_to_Fc[i.second] > 0 and (SwapRoles ? i.first <= 0 : i.first >= 0)) {
+                  if (--nonneg_out_edges_to_Fc[i.second] == 0)
+                    add_vertex_to_phase1_pq (i.second);
+                }
+                else if (nonneg_out_edges_to_Fc[i.second] == 0)
+                  phase1_pq.set (i.second, i.first + potential[v], true);
+              }
+              else { // Predecessor is Min
                 weight_t w = weight_t::copy (i.first);
                 w += potential[v];
                 phase2_pq.set (i.second, weight_t::steal (w), true); //!! should be steal
               }
-              if (nonneg_out_edges_to_Fc[i.second] and (SwapRoles ? i.first <= 0 : i.first >= 0)) {
-                assert ((SwapRoles ^ nrg_game.is_max (i.second)) and not F[i.second]);
-                if (--nonneg_out_edges_to_Fc[i.second] == 0)
-                  phase1_queue.push (i.second);
-              }
+
             }
           };
 
@@ -137,23 +157,16 @@ namespace potential {
            * add v to F, and go back to 1.
            */
           log ("Phase 1.\n");
-          while (not phase1_queue.empty ()) {
+          while (not phase1_pq.empty ()) {
             TICK (pot_phase1);
-            vertex_t v = phase1_queue.front ();
-            phase1_queue.pop ();
-            assert (not F[v] and nonneg_out_edges_to_Fc[v] == 0);
-            potential[v] = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
-            for (auto&& o : nrg_game.outs (v)) {
-              if (SwapRoles ? o.first > 0 : o.first < 0) continue;
-              assert (F[o.second]);
-              if (SwapRoles)
-                set_if_plus_smaller (*potential[v], *o.first, *potential[o.second]);
-              else
-                set_if_plus_larger (*potential[v], *o.first, *potential[o.second]);
-            }
-            log ("Putting " << v << " in F with pot " << potential[v] << std::endl);
-            F[v] = true;
-            decrease_preds (v);
+            auto from = phase1_pq.top ().key;
+            auto weight = std::move (phase1_pq.top ().priority);
+            phase1_pq.pop ();
+            assert (not F[from] and nonneg_out_edges_to_Fc[from] == 0);
+            potential[from] = weight_t::steal_or_proxy (weight);
+            log ("Putting " << from << " in F with pot " << potential[from] << std::endl);
+            F[from] = true;
+            decrease_preds (from);
           }
 
           /* 2. Otherwise, let vv' be an edge from VMin \ F to F (it is
