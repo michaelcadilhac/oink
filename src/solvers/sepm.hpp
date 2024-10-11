@@ -44,7 +44,7 @@ namespace pg {
       size_t n_nodes;
       weight_t limit;
       int* strategy;
-      int pos;
+      size_t pos;
       uintqueue TAtr;
       boost_bitset BAtr;
       weight_t* weight;

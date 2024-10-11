@@ -65,17 +65,15 @@ namespace potential {
          * (at least) a non-negative outgoing edge.
          */
         log ("Initialization of F\n");
-        F.assign (nrg_game.size (), false);
+        F.assign (nrg_game.size (), true);
         for (auto& p : potential)
           p = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
 
         for (auto&& v : teller.undecided_vertices ()) {
-          if (not F[v]) {
-            if (SwapRoles ^ nrg_game.is_max (v))
-              F[v] = std::ranges::all_of (nrg_game.outs (v), [this] (auto& x) { return SwapRoles ? x.first > 0 : x.first < 0; });
-            else
-              F[v] = std::ranges::any_of (nrg_game.outs (v), [this] (auto& x) { return SwapRoles ? x.first > 0 : x.first < 0; });
-          }
+          if (SwapRoles ^ nrg_game.is_max (v))
+            F[v] = std::ranges::all_of (nrg_game.outs (v), [this] (auto& x) { return SwapRoles ? x.first > 0 : x.first < 0; });
+          else
+            F[v] = std::ranges::any_of (nrg_game.outs (v), [this] (auto& x) { return SwapRoles ? x.first > 0 : x.first < 0; });
           if (F[v]) {
             potential[v] = zero_number (*nrg_game.get_infty ());
             log ("Putting " << v << " in F, with pot 0.\n");
