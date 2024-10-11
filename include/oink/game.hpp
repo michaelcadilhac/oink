@@ -24,8 +24,11 @@
 #include <memory>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-
 #include <oink/bitset.hpp>
+
+#ifdef GAMES_ARE_NRG
+# include <boost/multiprecision/gmp.hpp>
+#endif
 
 namespace pg {
 
@@ -60,7 +63,13 @@ namespace pg {
 
 class Game
 {
-public:
+  public:
+#ifdef GAMES_ARE_NRG
+    using priority_t = boost::multiprecision::mpz_int;
+#else
+    using priority_t = int;
+#endif
+
     /**
      * Construct a new (uninitialized) parity game.
      */
@@ -71,7 +80,7 @@ public:
      */
     Game(int count, int ecount = -1);
 
-    Game(size_t nv, size_t ne, std::vector<int>& priorities, bitset& owners, std::vector<std::vector<int>>& edges, std::vector<std::string*>& labels);
+    Game(size_t nv, size_t ne, std::vector<priority_t>& priorities, bitset& owners, std::vector<std::vector<int>>& edges, std::vector<std::string*>& labels);
 
     /**
      * Construct a deep clone of an existing parity game.
@@ -106,13 +115,13 @@ public:
     /**
      * Initialize a vertex <v> with given <priority>, <owner> and <label>.
      */
-    void init_vertex(int v, int priority, int owner, std::string label="");
+    void init_vertex(int v, priority_t priority, int owner, std::string label="");
 
     /**
      * Change the priority of a vertex.
      * At the end of this method, is_ordered is updated.
      */
-    void set_priority(int vertex, int priority);
+    void set_priority(int vertex, priority_t priority);
 
     /**
      * Change the owner of a vertex.
@@ -296,7 +305,7 @@ public:
     /**
      * Get the priority of a vertex
      */
-    inline int priority(const int vertex) const
+    inline priority_t priority(const int vertex) const
     {
         return _priority[vertex];
     }
@@ -477,7 +486,7 @@ private:
 
     long n_vertices;        // number of vertices
     long n_edges;           // number of edges
-    int *_priority;        // priority of each vertex
+    std::vector<priority_t> _priority;        // priority of each vertex
     bitset _owner;         // owner of each vertex (1 for odd, 0 for even)
     std::string **_label;  // (optional) vertex labels
 

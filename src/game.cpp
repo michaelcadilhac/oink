@@ -32,7 +32,6 @@ Game::Game() : _owner(0), solved(0), winner(0)
 {
     n_vertices = 0;
     n_edges = 0;
-    _priority = NULL;
     _label = NULL;
     _outvec = NULL;
     _outedges = NULL;
@@ -49,13 +48,13 @@ Game::Game() : _owner(0), solved(0), winner(0)
     set_random_seed(static_cast<unsigned int>(std::time(0)));
 }
 
-Game::Game(size_t nv, size_t ne, std::vector<int>& priorities, bitset& owners, std::vector<std::vector<int>>& edges, std::vector<std::string*>& labels) : Game(nv, ne)
+Game::Game(size_t nv, size_t ne, std::vector<priority_t>& priorities, bitset& owners, std::vector<std::vector<int>>& edges, std::vector<std::string*>& labels) : Game(nv, ne)
 {
     n_vertices = nv;
     n_edges = ne;
 
     // copy priorities
-    std::move(priorities.begin(), priorities.end(), _priority);
+    _priority = priorities;
 
     // copy owners
     _owner = owners;
@@ -94,7 +93,6 @@ Game::~Game()
         if (_label[i]) delete _label[i];
     }
 
-    free(_priority);
     free(_label);
     free(strategy);
     free(_firstouts);
@@ -124,13 +122,13 @@ Game::Game(int vcount, int ecount) : _owner(vcount), solved(vcount), winner(vcou
     e_allocated = vcount+ecount+1;  // extra space for -1
     e_size = 0;
 
-    _priority = (int*)malloc(sizeof(int[v_allocated]));
+    _priority.resize (v_allocated);
     _label = (string**)calloc(v_allocated, sizeof(string*));
     strategy = (int*)malloc(sizeof(int[v_allocated]));
     _firstouts = (int*)malloc(sizeof(int[v_allocated]));
     _outcount = (int*)malloc(sizeof(int[v_allocated]));
     _outedges = (int*)malloc(sizeof(int[e_allocated]));
-    if (_priority == (int*)0) abort();
+
     if (_label == (string**)0) abort();
     if (strategy == (int*)0) abort();
     if (_firstouts == (int*)0) abort();
@@ -162,7 +160,7 @@ Game::Game(const Game& other) : Game(other.n_vertices, other.e_size)
 {
     n_edges = other.n_edges;
 
-    memcpy(_priority, other._priority, sizeof(int[n_vertices]));
+    _priority = other._priority;
     _owner = other._owner;
     for (int i=0; i<n_vertices; i++) {
         if (other._label[i]) _label[i] = new std::string(*other._label[i]);
@@ -260,7 +258,7 @@ Game::init_random_game(int n, long maxP, long maxE)
 }
 
 void
-Game::init_vertex(int v, int priority, int owner, std::string label)
+Game::init_vertex(int v, priority_t priority, int owner, std::string label)
 {
     assert(v >= 0);
     while (v >= n_vertices) v_sizeup();
@@ -272,7 +270,7 @@ Game::init_vertex(int v, int priority, int owner, std::string label)
 }
 
 void
-Game::set_priority(int node, int priority)
+Game::set_priority(int node, priority_t priority)
 {
     _priority[node] = priority;
     if (is_ordered) {
@@ -586,9 +584,9 @@ Game::inflate()
     int d = 1;
 
     // reassign priorities and reindex nodes
-    int prio = -1;
+    priority_t prio = -1;
     for (int i=0; i<n_vertices; i++) {
-        const int p_mod_i = _priority[i]&1;
+        const auto p_mod_i = _priority[i]&1;
         if (prio == -1) prio = p_mod_i;
         else if (p_mod_i != prio%2) { prio += 1; d++; }
         else { prio += 2; d++; }
@@ -607,9 +605,9 @@ Game::compress()
     int d = 1;
 
     // reassign priorities and reindex nodes
-    int prio = -1;
+    priority_t prio = -1;
     for (int i=0; i<n_vertices; i++) {
-        const int p_mod_i = _priority[i]&1;
+        const auto p_mod_i = _priority[i]&1;
         if (prio == -1) prio = p_mod_i;
         else if (p_mod_i != prio%2) { prio += 1; d++; }
         _priority[i] = prio;
@@ -627,9 +625,9 @@ Game::renumber()
     int d = 1;
 
     // reassign priorities and reindex nodes
-    int prio = -1, last = -1;
+    priority_t prio = -1, last = -1;
     for (int i=0; i<n_vertices; i++) {
-        const int p_mod_i = _priority[i]&1;
+        const auto p_mod_i = _priority[i]&1;
         if (prio == -1) prio = p_mod_i;
         else if (p_mod_i != prio%2) { prio += 1; d++; }
         else if (last != _priority[i]) { prio += 2; d++; }
@@ -646,12 +644,12 @@ Game::evenodd()
     assert(is_ordered);
 
     // reassign priorities and reindex nodes
-    int prio = -1, last = -1;
+    priority_t prio = -1, last = -1;
     for (int i=0; i<n_vertices; i++) {
-        const int d = _priority[i]+1;
+        const auto d = _priority[i]+1;
         _owner[i] = 1-_owner[i];
 
-        const int p_mod_i = d&1;
+        const auto p_mod_i = d&1;
         if (prio == -1) prio = p_mod_i;
         else if (p_mod_i != prio%2) prio += 1;
         else if (last != d) prio += 2;
@@ -666,9 +664,9 @@ Game::minmax()
     assert(is_ordered);
 
     // reassign priorities and reindex nodes
-    int prio = -1, last = -1;
+    priority_t prio = -1, last = -1;
     for (int i=n_vertices-1; i>=0; i--) {
-        const int p_mod_i = _priority[i]&1;
+        const auto p_mod_i = _priority[i]&1;
         if (prio == -1) prio = p_mod_i;
         else if (p_mod_i != prio%2) prio += 1;
         else if (last != _priority[i]) prio += 2;
@@ -820,12 +818,12 @@ Game::v_sizeup(void)
 {
     v_allocated += v_allocated/2;
     n_vertices = v_allocated;
-    _priority = (int*)realloc(_priority, sizeof(int[v_allocated]));
+    _priority.resize (v_allocated);
     strategy = (int*)realloc(strategy, sizeof(int[v_allocated]));
     _firstouts = (int*)realloc(_firstouts, sizeof(int[v_allocated]));
     _outcount = (int*)realloc(_outcount, sizeof(int[v_allocated]));
     _label = (string**)realloc(_label, sizeof(string*[v_allocated]));
-    if (_priority == (int*)0) abort();
+
     if (strategy == (int*)0) abort();
     if (_firstouts == (int*)0) abort();
     if (_outcount == (int*)0) abort();

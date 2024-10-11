@@ -158,9 +158,7 @@ test_solver(Game &game, const std::string& solverid, double &time, std::ostream 
     // solve a copy
     Game copy(game);
     Oink solver(copy, log);
-#ifndef GAMES_ARE_NRG
     solver.setRenumber(); // default
-#endif
     if (opt_inflate) solver.setInflate();
     if (opt_compress) solver.setCompress();
     solver.setSolveSingle(opt_single);
