@@ -218,27 +218,27 @@ Verifier::verify(bool fullgame, bool even, bool odd)
 
             // Extract SCC, initialize distance.
             auto scc = std::set<int64_t> ();
-            auto distance = std::map<int64_t, int64_t> ();
+            auto distance = std::map<int64_t, Game::priority_t> ();
+            auto infty = std::map<int64_t, bool> ();
 
             for (auto u : res | std::views::reverse) {
               done[u] = true;
               scc.insert (u);
-              distance[u] = search_negative_cycles ? INT64_MAX : INT64_MIN;
+              infty[u] = true;
               if (u == v) break;
             }
             distance[v] = 0;
 
             for (size_t i = 0; i < scc.size (); ++i)
               for (auto u : scc) {
-                if (distance[u] == INT64_MIN or distance[u] ==INT64_MAX)
+                if (infty[u])
                   continue;
                 auto w = game.priority (u);
                 if (not search_negative_cycles) w = -w;
 
                 auto update_succ = [&] (int64_t succ) {
                   if (not scc.contains (succ)) return;
-                  if (distance[u] + w < distance[succ]) {
-
+                  if (infty[succ] or distance[u] + w < distance[succ]) {
                     // Last go: If there is a relaxation, that means there's an
                     // infinite negative cycle.
                     if (i == res.size () - 1) {
@@ -250,6 +250,7 @@ Verifier::verify(bool fullgame, bool even, bool odd)
                     }
 
                     distance[succ] = distance[u] + w;
+                    infty[succ] = false;
                   }
                 };
                 if (game.getWinner (u) == game.owner (u))

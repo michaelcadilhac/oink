@@ -32,6 +32,8 @@ namespace pg {
 class Solver
 {
 public:
+    using priority_t = Game::priority_t;
+
     Solver(Oink& oink, Game& game);
     virtual ~Solver() = default;
 
@@ -55,7 +57,7 @@ protected:
 
     [[nodiscard]] long nodecount() const { return game.nodecount(); }
     [[nodiscard]] long edgecount() const { return game.edgecount(); }
-    [[nodiscard]] int priority(int vertex) const { return game.priority(vertex); }
+    [[nodiscard]] priority_t priority(int vertex) const { return game.priority(vertex); }
     [[nodiscard]] int owner(int vertex) const { return game.owner(vertex); }
     [[nodiscard]] const int* outs(int vertex) const { return game.outedges() + game.firstout(vertex); }
     [[nodiscard]] const int* ins(int vertex) const { return game.inedges() + game.firstin(vertex); }
@@ -70,4 +72,4 @@ private:
 
 }
 
-#endif 
+#endif

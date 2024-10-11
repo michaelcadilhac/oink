@@ -85,6 +85,11 @@ target_sources(oink
     src/solvers.cpp
     src/solver.cpp
     src/verifier.cpp
+    ${OINK_HDRS})
+if(NOT OINK_ENERGY_GAMES)
+  # Parity game only solvers
+  target_sources (oink
+    PRIVATE
     # Solvers
     src/solvers/zlk.cpp
     src/solvers/zlkq.cpp
@@ -109,10 +114,15 @@ target_sources(oink
     src/solvers/zlkpp.cpp
     src/solvers/ptl.cpp
     src/solvers/dtl.cpp
+    )
+endif ()
+
+# Parity game and energy solvers
+target_sources (oink
+  PRIVATE
     src/solvers/qd.cpp
     src/solvers/osi.cpp
     src/solvers/sepm.cpp
-    ${OINK_HDRS}
 )
 
 set_target_properties(oink PROPERTIES PUBLIC_HEADER "${OINK_HDRS}")
