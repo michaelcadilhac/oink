@@ -22,6 +22,11 @@
 #include "oink/pgparser.hpp"
 #include "printf.hpp"
 
+#ifdef GAMES_ARE_NRG
+# include <boost/multiprecision/gmp.hpp>
+#endif
+
+
 namespace pg {
 
 /**
@@ -72,6 +77,30 @@ read_int64(std::streambuf *rd, int64_t *res)
     *res = (minus ? -1 : 1) * r;
     return true;
 }
+
+#ifdef GAMES_ARE_NRG
+static bool
+read_mpz(std::streambuf *rd, boost::multiprecision::mpz_int *res)
+{
+  std::string num = "";
+  int ch;
+  if ((ch=rd->sgetc()) == EOF) return false;
+  if (ch == '-') {
+    num = "-";
+    rd->sbumpc();
+    if ((ch=rd->sgetc()) == EOF) return false;
+  }
+  if (ch < '0' or ch > '9') { return false; }
+  while (true) {
+    rd->sbumpc();
+    num.push_back (ch);
+    if ((ch=rd->sgetc()) == EOF) break;
+    if (ch < '0' or ch > '9') { break; }
+  }
+  *res = boost::multiprecision::mpz_int (num);
+  return true;
+}
+#endif
 
 Game
 PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
@@ -161,7 +190,7 @@ PGParser::parse_pgsolver(std::istream &inp, bool removeBadLoops)
                 throw std::runtime_error("invalid successor");
             }
 
-            if (id == n and removeBadLoops and (res._owner[id] != (res._priority[id]&1))) {
+            if (id == n and removeBadLoops and (res._owner[id] != int (res._priority[id]&1))) {
                 has_self = true;
             } else {
                 // add edge to the vector
@@ -395,7 +424,7 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
 
     // initialize variables
     bitset seen(n_vertices);
-    std::vector<int64_t> priority(n_vertices);
+    std::vector<Game::priority_t> priority(n_vertices);
     bitset owner(n_vertices);
     std::vector<std::vector<int>> edges(n_vertices);
     std::vector<std::string*> labels(n_vertices);
@@ -431,8 +460,16 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
         node_count++;
 
         skip_whitespace(rd);
+
+#ifdef GAMES_ARE_NRG
+        boost::multiprecision::mpz_int mpz_n;
+        if (!read_mpz(rd, &mpz_n)) throw std::runtime_error("missing priority");
+        priority[id] = mpz_n;
+#else
         if (!read_int64(rd, &n)) throw std::runtime_error("missing priority");
         priority[id] = n;
+#endif
+
 
         skip_whitespace(rd);
         if (!read_int64(rd, &n)) throw std::runtime_error("missing owner");
@@ -453,7 +490,7 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
                 throw std::runtime_error(err.str());
             }
 
-            if (id == n and removeBadLoops and (owner[id] != (priority[id]&1))) {
+            if (id == n and removeBadLoops and (owner[id] != int (priority[id]&1))) {
                 has_self = true;
             } else {
                 // add edge to the vector
@@ -496,8 +533,7 @@ PGParser::parse_pgsolver_renumber(std::istream &in, bool removeBadLoops)
     }
 
 #ifdef GAMES_ARE_NRG
-    std::vector<int> int_priorities (priority.begin(), priority.end ());
-    return { node_count, edge_count, int_priorities, owner, edges, labels };
+    return { node_count, edge_count, priority, owner, edges, labels };
 #else
     // we now need to fix the first, if the game is indeed a priority game.
     boost::container::flat_map<int64_t, int> map;

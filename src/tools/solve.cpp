@@ -26,7 +26,7 @@
 #include <boost/iostreams/filter/bzip2.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 
-#include "cxxopts.hpp" 
+#include "cxxopts.hpp"
 #include "oink/oink.hpp"
 #include "oink/solvers.hpp"
 #include "oink/pgparser.hpp"

@@ -48,6 +48,7 @@ namespace pg {
 
 Solvers::Solvers()
 {
+#ifndef GAMES_ARE_NRG
     _add("zlkq", "qpt Zielonka", 0, [] (Oink& oink, Game& game) { return std::make_unique<ZLKQSolver>(oink, game); });
     _add("zlk", "parallel Zielonka", 1, [] (Oink& oink, Game& game) { return std::make_unique<ZLKSolver>(oink, game); });
     _add("uzlk", "unoptimized Zielonka", 0, [] (Oink& oink, Game& game) { return std::make_unique<UnoptimizedZLKSolver>(oink, game); });
@@ -80,6 +81,8 @@ Solvers::Solvers()
     _add("rtl", "recursive tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<RTLSolver>(oink, game); });
     _add("ortl", "one-sided recursive tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<ORTLSolver>(oink, game); });
     _add("tl", "tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<TLSolver>(oink, game); });
+#endif
+
     _add("fvi-asym", "fast value iteration (asymmetric)", 0, [] (Oink& oink, Game& game) {
       return std::make_unique<FVISolver<potential::potential_fvi>> (oink, game);
     });

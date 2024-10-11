@@ -65,7 +65,7 @@ Oink::solveTrivialCycles()
 
     // Allocate and initialize datastructures
     const int n_nodes = game->vertexcount();
-    int *done = new int[n_nodes];
+    auto done = new Game::priority_t[n_nodes];
     int64_t *low = new int64_t[n_nodes];
     for (int i=0; i<n_nodes; i++) done[i] = disabled[i] ? -2 : -1;
     for (int i=0; i<n_nodes; i++) low[i] = 0;
@@ -84,8 +84,8 @@ Oink::solveTrivialCycles()
         /**
          * We're going to search all winner-controlled SCCs reachable from node <i>
          */
-        const int pr = game->priority(i);
-        const int pl = pr & 1;
+        const auto pr = game->priority(i);
+        const int pl = int (pr & 1);
 
         /**
          * Only start at unsolved winner-controlled and not yet seen for this priority
@@ -159,7 +159,8 @@ Oink::solveTrivialCycles()
              * We're the root of an scc. Move the scc from <res> to <scc>.
              * Record highest prio, highest prio of good parity, highest node of good parity.
              */
-            int max_pr = -1, max_pr_pl = -1, max_pr_n = -1;
+            Game::priority_t max_pr = -1, max_pr_pl = -1;
+            int max_pr_n = -1;
             for (;;) {
                 if (res.empty()) LOGIC_ERROR;
                 int n = res.back();
@@ -167,7 +168,7 @@ Oink::solveTrivialCycles()
                 scc.push_back(n);
                 done[n] = pr; // dont check again this round
                 if (low[n] != min) low[n] = min; // set it [for strategy]
-                int d = game->priority(n);
+                auto d = game->priority(n);
                 if (d > max_pr) max_pr = d;
                 if ((d&1) == pl and d > max_pr_pl) {
                     max_pr_pl = d;
@@ -246,7 +247,7 @@ Oink::solveSelfloops()
         if (disabled[v]) continue; // skip vertices that are hidden
 
         if (game->has_edge(v, v)) {
-            if (game->owner(v) == (game->priority(v)&1)) {
+            if (game->owner(v) == int (game->priority(v)&1)) {
                 // a winning selfloop
                 if (trace) logger << "winning self-loop with priority \033[1;34m" << game->priority(v) << "\033[m" << std::endl;
                 solve(v, game->owner(v), v);
@@ -273,7 +274,7 @@ Oink::solveSingleParity()
     for (int v=0; v<game->vertexcount(); v++) {
         if (disabled[v]) continue;
         if (parity == -1) {
-            parity = game->priority(v)&1;
+          parity = int (game->priority(v)&1);
         } else if (parity == (game->priority(v)&1)) {
             continue;
         } else {
@@ -452,10 +453,13 @@ Oink::run()
     } else if (compress) {
         int d = game->compress();
         logger << "parity game compressed (" << d << " priorities)" << std::endl;
-    } else if (renumber) {
+    }
+#ifndef GAMES_ARE_NRG  // Refuse the renumber energy games
+    else if (renumber) {
         int d = game->renumber();
         logger << "parity game renumbered (" << d << " priorities)" << std::endl;
     }
+#endif
 
     /**
      * Deal with partial solutions

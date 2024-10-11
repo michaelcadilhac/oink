@@ -5,9 +5,9 @@
 
 #include "energy_game/types.hpp"
 
+#include "energy_game/numbers/gmp.hpp"
 #include "energy_game/numbers/int.hpp"
 #include "energy_game/numbers/omap.hpp"
-#include "energy_game/numbers/gmp.hpp"
 #include "energy_game/numbers/ovec.hpp"
 
 /// Default definitions:

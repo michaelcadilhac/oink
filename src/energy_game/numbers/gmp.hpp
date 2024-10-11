@@ -63,7 +63,8 @@ class gmp : public boost::multiprecision::mpz_int {
                                      bool swap)
     {
 #ifdef GAMES_ARE_NRG
-      return ::priority_to_number<int64_t> (prio, pgame, swap);
+      (void) swap; // avoid unused variable warning
+      return (pgame.nodecount () + 1) * prio + 1;
 #else
 
       // TODO Clean this nonsense.
@@ -93,7 +94,9 @@ class gmp : public boost::multiprecision::mpz_int {
 
     static gmp infinity_number (const pg::Game& pgame) {
 #ifdef GAMES_ARE_NRG
-      return ::infinity_number<int64_t> (pgame);
+      return ((pgame.nodecount () - 1) * ((pgame.nodecount () + 1) *
+                                          std::max (abs (pgame.priority (pgame.nodecount () - 1)),
+                                                    abs (pgame.priority (0))) + 1) + 1);
 #else
       ssize_t t = pgame.nodecount ();
       ssize_t sbase = 1;
