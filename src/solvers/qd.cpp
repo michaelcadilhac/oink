@@ -17,6 +17,15 @@
 #define _INLINE_ __attribute__ ((always_inline))
 
 #include "qd.hpp"
+#include "solvers/stats.hpp"
+
+ADD_TO_STATS (qd_iterations);
+
+#ifdef NDEBUG
+# define log_stat(T)
+#else
+# define log_stat(T) do { this->logger << T; } while (0)
+#endif
 
 namespace pg {
 
@@ -387,10 +396,12 @@ namespace pg {
     }
 
     while (TAtr.nonempty () || TProm.nonempty ()) {
+      TICK (qd_iterations);
       atr ();
       promo ();
     }
-
+    log_stat ("QD iterations: " << GET_STAT (qd_iterations) << "\n");
+    
     for (pos = 0; pos < (uint) n_nodes; ++pos) {
       if (ingame[pos]) {
         Solver::solve (pos, 1, strategy[pos]);

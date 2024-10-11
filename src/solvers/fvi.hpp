@@ -21,15 +21,17 @@
 #include "solvers/potential/potential_teller.hpp"
 #include "solvers/potential/potential_computers.hpp"
 
-#include "solvers/potential/stats.hpp"
+#include "solvers/stats.hpp"
 
 ADD_TIME_TO_STATS (compute);
 ADD_TIME_TO_STATS (tm_solving);
 
 #ifdef NDEBUG
 # define log(T)
+# define log_stat(T)
 #else
 # define log(T) do { if (this->trace >= 1) { this->logger << T; } } while (0)
+# define log_stat(T) do { this->logger << T; } while (0)
 #endif
 
 
@@ -81,12 +83,12 @@ namespace pg {
           }
         }
 
-        log_stat ("stat: eg_pot_update = " << potential::stats::eg_pot_update << "\n");
-        log_stat ("stat: eg_reduce = " << potential::stats::eg_reduce << "\n");
-        log_stat ("stat: pot_compute = " << potential::stats::pot_compute << "\n");
-        log_stat ("stat: pot_iter = " << potential::stats::pot_iter << "\n");
-        log_stat ("stat: pot_phase2 = " << potential::stats::pot_phase2 << "\n");
-        log_stat ("stat: pot_backtrack = " << potential::stats::pot_backtrack << "\n");
+        log_stat ("stat: eg_pot_update = " << GET_STAT (eg_pot_update) << "\n");
+        log_stat ("stat: eg_reduce = " << GET_STAT (eg_reduce) << "\n");
+        log_stat ("stat: pot_compute = " << GET_STAT (pot_compute) << "\n");
+        log_stat ("stat: pot_iter = " << GET_STAT (pot_iter) << "\n");
+        log_stat ("stat: pot_phase2 = " << GET_STAT (pot_phase2) << "\n");
+        log_stat ("stat: pot_backtrack = " << GET_STAT (pot_backtrack) << "\n");
 
 #define PRINT_TIME(Field) log_stat ("timestat: " #Field " = " << GET_TIME (Field) << "\n");
 

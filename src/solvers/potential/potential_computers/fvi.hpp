@@ -1,6 +1,6 @@
 #pragma once
 
-#include "solvers/potential/stats.hpp"
+#include "solvers/stats.hpp"
 #include "solvers/potential/potential_computers/mutable_priority_queue.hh"
 
 ADD_TO_STATS (pot_compute);
@@ -54,7 +54,7 @@ namespace potential {
 
       std::vector<vertex_t> to_backtrack;
       void compute () {
-        C (pot_compute);
+        TICK (pot_compute);
 
         /* We start by determining in linear time the set N of vertices from
          * which Min can force to immediately visit an edge of negative weight;
@@ -131,14 +131,14 @@ namespace potential {
           };
 
         while (true) {
-          C (pot_iter);
+          TICK (pot_iter);
           /* 1. If there is a Max vertex v notin F, all of whose non-negative outgoing
            * edges vv' lead to F, set, En+(v) to be the maximal w(vv') + En+(v'),
            * add v to F, and go back to 1.
            */
           log ("Phase 1.\n");
           while (not phase1_queue.empty ()) {
-            C (pot_phase1);
+            TICK (pot_phase1);
             vertex_t v = phase1_queue.front ();
             phase1_queue.pop ();
             assert (not F[v] and nonneg_out_edges_to_Fc[v] == 0);
@@ -166,7 +166,7 @@ namespace potential {
           log ("Phase 2.\n");
           bool change = false;
           while (not phase2_pq.empty ()) {
-            C (pot_phase2);
+            TICK (pot_phase2);
             auto from = phase2_pq.top ().key;
             auto weight = weight_t::steal_or_proxy (const_cast<weight_t&> (phase2_pq.top ().priority));
             phase2_pq.pop ();
@@ -207,7 +207,7 @@ namespace potential {
 
         // In addition, we compute the attractor of the newly discovered decided nodes
         while (not to_backtrack.empty ()) {
-          C (pot_backtrack);
+          TICK (pot_backtrack);
           auto v = to_backtrack.back ();
           to_backtrack.pop_back ();
           for (auto&& wi : nrg_game.ins (v)) {

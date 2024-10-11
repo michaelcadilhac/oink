@@ -1,6 +1,6 @@
 #pragma once
 
-#include "solvers/potential/stats.hpp"
+#include "solvers/stats.hpp"
 
 ADD_TO_STATS (eg_reduce);
 ADD_TO_STATS (eg_pot_update);
@@ -44,7 +44,7 @@ namespace potential {
       std::set<vertex_t> newly_decided;
 
       bool reduce (const potential_t& norm_pot) {
-        C (eg_reduce);
+        TICK (eg_reduce);
         START_TIME (tm_reduce_update_pot);
         START_TIME (tm_reduce);
 
@@ -54,7 +54,7 @@ namespace potential {
 
         for (auto&& v : undecided_verts) {
           if (not decided[v] and norm_pot[v] != 0) {
-            C (eg_pot_update);
+            TICK (eg_pot_update);
             changed = true;
             if (norm_pot[v] >= infty)
               potential[v] = infty;
