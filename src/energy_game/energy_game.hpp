@@ -3,31 +3,13 @@
 #include "energy_game/types.hpp"
 #include "energy_game/numbers.hpp"
 
-template <MovableNumber W>
-class energy_game;
-
-template <MovableNumber W>
-std::ostream& operator<< (std::ostream& os, const energy_game<W>& egame) {
-  os << "digraph G {" << std::endl;
-  for (auto&& v : egame.vertices ()) {
-    os << v << " [ shape=\"" << (egame.is_max (v) ? "box" : "circle")
-       << "\", label=\"" << v << "\"";
-    os << "];" << std::endl;
-    for (auto&& e : egame.outs (v))
-      os << v << " -> " << e.second << " [label=\"" << e.first << "\"];" << std::endl;
-  }
-  os << "}" << std::endl;
-
-  return os;
-}
-
-template <MovableNumber W>
+template <MovableNumber W, typename... ExtraEdgeInfo>
 class energy_game {
     size_t             nverts, nedges;
     W                  infty, minus_infty;
   public:
     using weight_t = W;
-    using neighbors_t = std::vector<std::pair<weight_t, vertex_t>>;
+    using neighbors_t = std::vector<std::tuple<weight_t, vertex_t, ExtraEdgeInfo...>>;
 
   private:
     std::vector<neighbors_t> out_neighbors, in_neighbors;
@@ -72,8 +54,10 @@ class energy_game {
 
         for (const int* o = pgame.outedges() + pgame.firstout (v); *o != -1; ++o, ++w) {
           W trans_w = W::copy (priow);
-          out_neighbors[v].push_back (std::make_pair (W::steal (trans_w), *o));
-          in_neighbors[*o].push_back (std::make_pair (W::proxy (trans_w), v));
+          out_neighbors[v].push_back (std::tuple_cat (std::make_pair (W::steal (trans_w), *o),
+                                                      std::tuple<ExtraEdgeInfo...> {}));
+          in_neighbors[*o].push_back (std::tuple_cat (std::make_pair (W::proxy (trans_w), v),
+                                                      std::tuple<ExtraEdgeInfo...> {}));
         }
 
         max_owned[v] = (pgame.owner (v) == 0) ^ swap;
@@ -87,8 +71,10 @@ class energy_game {
   public:
     void add_transition (const vertex_t& v1, const W& w, const vertex_t& v2) {
       W tw = W::copy (w);
-      out_neighbors[v1].push_back (std::make_pair (W::steal (tw), v2));
-      in_neighbors[v2].push_back (std::make_pair (W::proxy (tw), v1));
+      out_neighbors[v1].push_back (std::tuple_cat (std::make_pair (W::steal (tw), v2),
+                                                   std::tuple<ExtraEdgeInfo...> {}));
+      in_neighbors[v2].push_back (std::tuple_cat (std::make_pair (W::proxy (tw), v1),
+                                                  std::tuple<ExtraEdgeInfo...> {}));
       //infty = max (abs (*w) * nverts, *infty); // this is being lazy, but add_transition is used only for debug.
       minus_infty = -*infty;
     }
@@ -103,11 +89,11 @@ class energy_game {
       return not max_owned[v];
     }
 
-    const neighbors_t& outs (const vertex_t& v) const {
+    neighbors_t& outs (const vertex_t& v) {
       return out_neighbors[v];
     }
 
-    const neighbors_t& ins (const vertex_t& v) const {
+    neighbors_t& ins (const vertex_t& v) {
       return in_neighbors[v];
     }
 
@@ -118,7 +104,7 @@ class energy_game {
     }
 
     const W& some_outweight (const vertex_t& v) const {
-      return out_neighbors[v][0].first;
+      return std::get<0> (out_neighbors[v][0]);
     }
 
     size_t size() const {
@@ -127,20 +113,20 @@ class energy_game {
 
     void isolate_vertex (const vertex_t& v) {
       for (auto& n : out_neighbors[v]) {
-        if (n.second == v) continue;
-        auto& in = in_neighbors[n.second];
+        if (std::get<1> (n) == v) continue;
+        auto& in = in_neighbors[std::get<1> (n)];
         auto pos = std::find_if (in.begin (), in.end (),
-                                 [&v] (auto& x) { return x.second == v; });
+                                 [&v] (auto& x) { return std::get<1> (x) == v; });
         assert (pos != in.end ());
         std::swap (*pos, in.back ());
         in.pop_back ();
       }
       out_neighbors[v].clear ();
       for (auto& p : in_neighbors[v]) {
-        if (p.second == v) continue;
-        auto& out = out_neighbors[p.second];
+        if (std::get<1> (p) == v) continue;
+        auto& out = out_neighbors[std::get<1> (p)];
         auto pos = std::find_if (out.begin (), out.end (),
-                                 [&v] (auto& x) { return x.second == v; });
+                                 [&v] (auto& x) { return std::get<1> (x) == v; });
         assert (pos != out.end ());
         std::swap (*pos, out.back ());
         out.pop_back ();
@@ -172,5 +158,21 @@ class energy_game {
       return minus_infty;
     }
 
-    friend std::ostream& operator<<<> (std::ostream&, const energy_game&);
+    std::ostream& print (std::ostream& os) const {
+      os << "digraph G {" << std::endl;
+      for (auto&& v : vertices ()) {
+        os << v << " [ shape=\"" << (is_max (v) ? "box" : "circle")
+           << "\", label=\"" << v << "\"";
+        os << "];" << std::endl;
+        for (auto&& e : out_neighbors[v])
+          os << v << " -> " << std::get<1> (e) << " [label=\"" << std::get<0> (e) << "\"];" << std::endl;
+      }
+      os << "}" << std::endl;
+      return os;
+    }
 };
+
+template <MovableNumber W, typename... ExtraEdgeInfo>
+std::ostream& operator<< (std::ostream& os, const energy_game<W, ExtraEdgeInfo...>& egame) {
+  return egame.print (os);
+}
