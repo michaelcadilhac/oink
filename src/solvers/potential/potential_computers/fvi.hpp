@@ -95,7 +95,7 @@ namespace potential {
             else
               set_if_plus_larger (*max_succ, *o.first, *potential[o.second]);
           }
-          phase1_pq.set (v, std::move (max_succ), true);
+          phase1_pq.set (v, std::move (max_succ), phase1_pq.only_if_higher);
         };
 
         // Extract the minimal transitions going from  Fc to F.
@@ -116,7 +116,7 @@ namespace potential {
               if (not F[i.second] and not (nrg_game.is_max (i.second) ^ SwapRoles)) {
                 // Use a weight proxy to avoid duplication.
                 phase2_pq.set (i.second, weight_t::proxy (const_cast<weight_t&> (i.first)),
-                               true);
+                               phase2_pq.only_if_higher);
               }
             }
           }
@@ -139,12 +139,12 @@ namespace potential {
                     add_vertex_to_phase1_pq (i.second);
                 }
                 else if (nonneg_out_edges_to_Fc[i.second] == 0)
-                  phase1_pq.set (i.second, i.first + potential[v], true);
+                  phase1_pq.set (i.second, i.first + potential[v], phase1_pq.only_if_higher);
               }
               else { // Predecessor is Min
                 weight_t w = weight_t::copy (i.first);
                 w += potential[v];
-                phase2_pq.set (i.second, weight_t::steal (w), true); //!! should be steal
+                phase2_pq.set (i.second, weight_t::steal (w), phase2_pq.only_if_higher); //!! should be steal
               }
 
             }

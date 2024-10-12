@@ -9,6 +9,12 @@
 
 #include <vector>
 
+namespace detail {
+  enum class mutable_priority_queue_update_cond {
+    alway_update, only_if_higher, only_if_lower
+  };
+}
+
 template <typename Key, typename Priority, typename Compare>
 class mutable_priority_queue {
     struct priority_queue_node {
@@ -24,6 +30,9 @@ class mutable_priority_queue {
     Compare comp;
 
   public:
+    using update_cond = enum ::detail::mutable_priority_queue_update_cond;
+    using enum update_cond;
+
     mutable_priority_queue (size_t init_reserve) {
       id_to_heappos.reserve (init_reserve);
       heap.reserve (init_reserve);
@@ -50,10 +59,10 @@ class mutable_priority_queue {
 
     /** Sets the priority for the given key. If not present, it will be added,
      *  otherwise it will be updated. */
-    void set (const Key& key, Priority&& priority, bool only_if_higher = false) {
+    void set (const Key& key, Priority&& priority, update_cond update_if = alway_update) {
       if (static_cast<size_t> (key) < id_to_heappos.size () and
           id_to_heappos[key] != SIZE_MAX) // This key is already in the pQ
-        update (key, std::move (priority), only_if_higher);
+        update (key, std::move (priority), update_if);
       else
         push (key, std::move (priority));
     }
@@ -80,17 +89,17 @@ class mutable_priority_queue {
       sift_up (n);
     }
 
-    void update (const Key& key, Priority&& new_priority, bool only_if_higher = false) {
+    void update (const Key& key, Priority&& new_priority, update_cond update_if) {
       assert (static_cast<size_t> (key) < id_to_heappos.size ());
       size_t heappos = id_to_heappos[key];
       assert (heappos != SIZE_MAX);
 
       Priority& priority = heap[heappos].priority;
 
-      if (comp (priority, new_priority)) {
+      if (update_if != only_if_lower and comp (priority, new_priority)) {
         priority = std::forward<Priority> (new_priority);
         sift_up (heappos);
-      } else if (not only_if_higher and comp (new_priority, priority)) {
+      } else if (update_if != only_if_higher and comp (new_priority, priority)) {
         priority = std::forward<Priority> (new_priority);
         sift_down (heappos);
       }
