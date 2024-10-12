@@ -3,11 +3,10 @@
 #include "solvers/stats.hpp"
 #include "solvers/potential/potential_computers/mutable_priority_queue.hh"
 
-ADD_TO_STATS (pot_compute);
-ADD_TO_STATS (pot_iter);
-ADD_TO_STATS (pot_phase1);
-ADD_TO_STATS (pot_phase2);
-ADD_TO_STATS (pot_backtrack);
+ADD_TO_STATS (nfvi_pot_iter);
+ADD_TO_STATS (nfvi_pot_phase1);
+ADD_TO_STATS (nfvi_pot_phase2);
+ADD_TO_STATS (nfvi_pot_backtrack);
 
 #ifdef NDEBUG
 # define log(T)
@@ -18,7 +17,7 @@ ADD_TO_STATS (pot_backtrack);
 
 namespace potential {
   template <bool SwapRoles, typename EnergyGame, typename PotentialTeller>
-  class potential_fvi_swap : public potential_computer<EnergyGame, PotentialTeller> {
+  class potential_fvi_nfvi_swap : public potential_computer<EnergyGame, PotentialTeller> {
       using weight_t = EnergyGame::weight_t;
       using potential_computer<EnergyGame, PotentialTeller>::nrg_game;
       using potential_computer<EnergyGame, PotentialTeller>::teller;
@@ -29,7 +28,7 @@ namespace potential {
       // be for (max ^ SwapRoles)
       // vertices.
     public:
-      potential_fvi_swap (const EnergyGame& nrg_game, const PotentialTeller& teller, logger_t& logger, int trace) :
+      potential_fvi_nfvi_swap (const EnergyGame& nrg_game, const PotentialTeller& teller, logger_t& logger, int trace) :
         potential_computer<EnergyGame, PotentialTeller> (nrg_game, teller, logger, trace),
         F (nrg_game.size ()),
         strat (nrg_game.size (), -1),
@@ -54,8 +53,6 @@ namespace potential {
 
       std::vector<vertex_t> to_backtrack;
       void compute () {
-        TICK (pot_compute);
-
         /* We start by determining in linear time the set N of vertices from
          * which Min can force to immediately visit an edge of negative weight;
          * these have En+-value 0.  We will successively update a set F
@@ -80,9 +77,24 @@ namespace potential {
           }
         }
 
-        std::queue<vertex_t> phase1_queue;
-        auto comp = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
-        auto phase2_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp)> (nrg_game.size ());
+        auto comp1 = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 > w2 : w1 < w2; };
+        auto max_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp1)> (nrg_game.size ());
+        auto comp2 = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
+        auto min_outedge_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp2)> (nrg_game.size ());
+
+        auto add_max_vertex_to_pqs = [this, &max_pq, &min_outedge_pq] (vertex_t v) {
+          weight_t max_succ = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
+          for (auto&& o : nrg_game.outs (v)) {
+            if (not F[o.second]) continue;
+
+            if (SwapRoles)
+              set_if_plus_smaller (*max_succ, *o.first, *potential[o.second]);
+            else
+              set_if_plus_larger (*max_succ, *o.first, *potential[o.second]);
+          }
+          min_outedge_pq.set (v, weight_t::proxy (max_succ), max_pq.alway_update);
+          max_pq.set (v, weight_t::steal (max_succ), max_pq.alway_update);
+        };
 
         // Extract the minimal transitions going from  Fc to F.
         std::ranges::fill(nonneg_out_edges_to_Fc, 0);
@@ -94,15 +106,15 @@ namespace potential {
                 if (not F[o.second] and (SwapRoles ? o.first <= 0 : o.first >= 0))
                   nonneg_out_edges_to_Fc[v]++;
               if (nonneg_out_edges_to_Fc[v] == 0)
-                phase1_queue.push (v);
+                add_max_vertex_to_pqs (v);
             }
           }
           else {
             for (auto&& i : nrg_game.ins (v)) {
               if (not F[i.second] and not (nrg_game.is_max (i.second) ^ SwapRoles)) {
                 // Use a weight proxy to avoid duplication.
-                phase2_pq.set (i.second, weight_t::proxy (const_cast<weight_t&> (i.first)),
-                               phase2_pq.only_if_higher);
+                min_outedge_pq.set (i.second, weight_t::proxy (const_cast<weight_t&> (i.first)),
+                                    min_outedge_pq.only_if_higher);
               }
             }
           }
@@ -115,71 +127,71 @@ namespace potential {
          * counter is zero).
          */
         auto decrease_preds =
-          [this, &phase1_queue, &phase2_pq] (vertex_t v) {
+          [this, &max_pq, &min_outedge_pq, &add_max_vertex_to_pqs] (vertex_t v) {
             for (auto&& i : nrg_game.ins (v)) {
-              if (not (nrg_game.is_max (i.second) ^ SwapRoles) and not F[i.second]) {
+              if (F[i.second]) continue;
+
+              if (nrg_game.is_max (i.second) ^ SwapRoles) { // Predecessor is Max
+                if (nonneg_out_edges_to_Fc[i.second] > 0 and (SwapRoles ? i.first <= 0 : i.first >= 0)) {
+                  if (--nonneg_out_edges_to_Fc[i.second] == 0)
+                    add_max_vertex_to_pqs (i.second);
+                }
+                else if (nonneg_out_edges_to_Fc[i.second] == 0) {
+                  weight_t w = weight_t::copy (i.first);
+                  w += potential[v];
+                  min_outedge_pq.set (i.second, weight_t::proxy (w), max_pq.only_if_lower);
+                  max_pq.set (i.second, weight_t::steal (w), max_pq.only_if_higher);
+                }
+              }
+              else { // Predecessor is Min
                 weight_t w = weight_t::copy (i.first);
                 w += potential[v];
-                phase2_pq.set (i.second, weight_t::steal (w), phase2_pq.only_if_higher); //!! should be steal
+                //! Higher means smaller in min_outedge_pq.
+                min_outedge_pq.set (i.second, weight_t::steal (w), min_outedge_pq.only_if_higher);
               }
-              if (nonneg_out_edges_to_Fc[i.second] and (SwapRoles ? i.first <= 0 : i.first >= 0)) {
-                assert ((SwapRoles ^ nrg_game.is_max (i.second)) and not F[i.second]);
-                if (--nonneg_out_edges_to_Fc[i.second] == 0)
-                  phase1_queue.push (i.second);
-              }
+
             }
           };
 
         while (true) {
-          TICK (pot_iter);
+          TICK (nfvi_pot_iter);
           /* 1. If there is a Max vertex v notin F, all of whose non-negative outgoing
            * edges vv' lead to F, set, En+(v) to be the maximal w(vv') + En+(v'),
            * add v to F, and go back to 1.
            */
           log ("Phase 1.\n");
-          while (not phase1_queue.empty ()) {
-            TICK (pot_phase1);
-            vertex_t v = phase1_queue.front ();
-            phase1_queue.pop ();
-            assert (not F[v] and nonneg_out_edges_to_Fc[v] == 0);
-            potential[v] = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
-            for (auto&& o : nrg_game.outs (v)) {
-              if (SwapRoles ? o.first > 0 : o.first < 0) continue;
-              assert (F[o.second]);
-              if (SwapRoles)
-                set_if_plus_smaller (*potential[v], *o.first, *potential[o.second]);
-              else
-                set_if_plus_larger (*potential[v], *o.first, *potential[o.second]);
-            }
-            log ("Putting " << v << " in F with pot " << potential[v] << std::endl);
-            F[v] = true;
-            decrease_preds (v);
-          }
+          while (not min_outedge_pq.empty ()) {
+            TICK (nfvi_pot_phase1);
+            auto from = min_outedge_pq.top ().key;
 
-          /* 2. Otherwise, let vv' be an edge from VMin \ F to F (it is
-           * necessarily positive) minimising w(vv') + En+(v'); set En+(v) =
-           * w(vv') + En+(v'), add v to F and go back to 1. If there is no such
-           * edge, terminate.  For step 2, one should store, for each v ∈ VMax \
-           * F, the edge towards F minimising w(vv') + En+(v') in a priority
-           * queue.
-           */
-          log ("Phase 2.\n");
-          bool change = false;
-          while (not phase2_pq.empty ()) {
-            TICK (pot_phase2);
-            auto from = phase2_pq.top ().key;
-            auto weight = weight_t::steal_or_proxy (const_cast<weight_t&> (phase2_pq.top ().priority));
-            phase2_pq.pop ();
-            if (F[from]) continue;
+            if (F[from]) {
+              assert (nrg_game.is_max (from) ^ SwapRoles);
+              min_outedge_pq.pop ();
+              continue;
+            }
+
+            if (nrg_game.is_max (from) ^ SwapRoles)
+              break;
+
+            auto weight = weight_t::steal_or_proxy (const_cast<weight_t&> (min_outedge_pq.top ().priority));
+
+            min_outedge_pq.pop ();
             potential[from] = weight_t::steal_or_copy (weight);
-            F[from] = true;
             log ("Putting " << from << " in F with pot " << potential[from] << std::endl);
+            F[from] = true;
             decrease_preds (from);
-            change = true;
-            break;
           }
-          if (not change)
+          // Treat one max
+          if (max_pq.empty ()) // We're done
             break;
+          auto from = max_pq.top ().key;
+          auto weight = weight_t::steal_or_proxy (const_cast<weight_t&> (max_pq.top ().priority));
+          max_pq.pop ();
+          // min_outedge_pq.remove (from); // TODO check if better
+          assert (not F[from]);
+          F[from] = true;
+          potential[from] = weight_t::steal_or_copy (weight);
+          decrease_preds (from);
         }
 
         /* After the iteration has terminated, there remains to deal with Fc,
@@ -207,7 +219,7 @@ namespace potential {
 
         // In addition, we compute the attractor of the newly discovered decided nodes
         while (not to_backtrack.empty ()) {
-          TICK (pot_backtrack);
+          TICK (nfvi_pot_backtrack);
           auto v = to_backtrack.back ();
           to_backtrack.pop_back ();
           for (auto&& wi : nrg_game.ins (v)) {
@@ -240,7 +252,7 @@ namespace potential {
   };
 
   template <typename EG, typename PT>
-  using potential_fvi = potential_fvi_swap<false, EG, PT>;
+  using potential_fvi_nfvi = potential_fvi_nfvi_swap<false, EG, PT>;
 }
 
 #undef log

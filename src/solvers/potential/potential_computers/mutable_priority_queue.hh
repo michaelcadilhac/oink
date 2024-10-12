@@ -57,6 +57,19 @@ class mutable_priority_queue {
       sift_down (0);
     }
 
+    void remove (const Key& key) {
+      auto pos = id_to_heappos[key];
+      id_to_heappos[key] = SIZE_MAX;
+
+      if (size () > 1) {
+        heap[pos] = std::move (*(heap.end () - 1));
+        id_to_heappos[heap[pos].key] = pos;
+      }
+
+      heap.pop_back ();
+      sift_down (pos);
+    }
+
     /** Sets the priority for the given key. If not present, it will be added,
      *  otherwise it will be updated. */
     void set (const Key& key, Priority&& priority, update_cond update_if = alway_update) {

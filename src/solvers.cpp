@@ -83,12 +83,26 @@ Solvers::Solvers()
     _add("tl", "tangle learning", 0, [] (Oink& oink, Game& game) { return std::make_unique<TLSolver>(oink, game); });
 #endif
 
-    _add("fvi-asym", "fast value iteration (asymmetric)", 0, [] (Oink& oink, Game& game) {
+    _add("fvi", "fast value iteration (asymmetric)", 0, [] (Oink& oink, Game& game) {
       return std::make_unique<FVISolver<potential::potential_fvi>> (oink, game);
     });
-    _add("fvi-alt", "fast value iteration (alternating)", 0, [] (Oink& oink, Game& game) {
-      return std::make_unique<FVISolver<potential::potential_fvi_alt>> (oink, game);
+
+    _add("fvi-phase1pq", "fast value iteration (asymmetric)", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<FVISolver<potential::potential_fvi_phase1_pq>> (oink, game);
     });
+
+    _add("fvi-qd", "fast value iteration (asymmetric)", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<FVISolver<potential::potential_fvi_qd>> (oink, game);
+    });
+
+    _add("fvi-nfvi", "fast value iteration (asymmetric)", 0, [] (Oink& oink, Game& game) {
+       return std::make_unique<FVISolver<potential::potential_fvi_nfvi>> (oink, game);
+    });
+
+    // _add("fvi-alt", "fast value iteration (alternating)", 0, [] (Oink& oink, Game& game) {
+    //   return std::make_unique<FVISolver<potential::potential_fvi_alt>> (oink, game);
+    // });
+
     _add("qd", "quasi-dominions", 0, [] (Oink& oink, Game& game) { return std::make_unique<QDSolver>(oink, game); });
     _add("osi", "OSI", 0, [] (Oink& oink, Game& game) { return std::make_unique<OSISolver>(oink, game); });
     _add("sepm", "SEPM", 0, [] (Oink& oink, Game& game) { return std::make_unique<SEPMSolver>(oink, game); });

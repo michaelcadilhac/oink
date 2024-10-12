@@ -43,4 +43,7 @@ namespace potential {
 
 #include "solvers/potential/potential_computers/vi.hpp"
 #include "solvers/potential/potential_computers/fvi.hpp"
+#include "solvers/potential/potential_computers/fvi_phase1_pq.hpp"
+#include "solvers/potential/potential_computers/fvi_qd.hpp"
+#include "solvers/potential/potential_computers/fvi_nfvi.hpp"
 #include "solvers/potential/potential_computers/fvi_alt.hpp"

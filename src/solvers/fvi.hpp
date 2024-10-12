@@ -23,6 +23,7 @@
 
 #include "solvers/stats.hpp"
 
+ADD_TO_STATS (turns);
 ADD_TIME_TO_STATS (compute);
 ADD_TIME_TO_STATS (tm_solving);
 
@@ -57,6 +58,7 @@ namespace pg {
 
         log ("Infinity: " << nrg_game.get_infty () << std::endl);
         do {
+          TICK (turns);
           log (nrg_game << std::endl);
           START_TIME (compute);
           computer.compute ();
@@ -83,6 +85,7 @@ namespace pg {
           }
         }
 
+        log_stat ("stat: turns = " << GET_STAT (turns) << "\n");
         log_stat ("stat: eg_pot_update = " << GET_STAT (eg_pot_update) << "\n");
         log_stat ("stat: eg_reduce = " << GET_STAT (eg_reduce) << "\n");
         log_stat ("stat: pot_compute = " << GET_STAT (pot_compute) << "\n");
