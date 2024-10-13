@@ -21,6 +21,7 @@ bool set_if_plus_smaller (T& w, const T& w1, const T& w2) {
   return w.set_if_plus_smaller (w1, w2);
 }
 
+#ifndef NOINK
 template <typename T>
 T priority_to_number (const priority_t& prio,
                       const pg::Game& pgame,
@@ -37,6 +38,7 @@ template <typename T>
 T zero_number (const T& t) {
   return T::zero_number (t);
 }
+#endif // NOINK
 
 namespace std {
   template <Number W>

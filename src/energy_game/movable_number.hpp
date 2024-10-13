@@ -26,7 +26,7 @@ class movable_number {
     movable_number () : num (allocator.construct ()) { owns = true; }
     movable_number (const movable_number& other) : movable_number () { *num = *other; } // deep
     movable_number (const movable_number& other, bool owns) : num (other.num), owns (owns) {} // shallow
-    movable_number (movable_number&& other) : num (other.num) {
+    movable_number (movable_number&& other) noexcept : num (other.num) {
       owns = other.owns;
       other.owns = false;
     }
@@ -34,7 +34,7 @@ class movable_number {
     template <typename T = N, std::enable_if_t<not std::is_integral_v<T>, bool> = true>
     movable_number (const int64_t& src) : movable_number () { *num = src; }
     movable_number (const number_t& src) : movable_number () { *num = src; }
-    movable_number (number_t&& src) : movable_number () { *num = std::move (src); }
+    movable_number (number_t&& src) noexcept : movable_number () { *num = std::move (src); }
 
     /// Destructor calls destroy only when the number is owned
     ~movable_number () { if (owns) allocator.destroy (num); }
@@ -84,7 +84,7 @@ class movable_number {
     /** Assignment operators. */
 
     /// Same as move constructor, but may destroy current number.
-    movable_number& operator= (movable_number&& other) {
+    movable_number& operator= (movable_number&& other) noexcept {
       if (owns and num != other.num)
         allocator.destroy (num);
       num = other.num;

@@ -16,7 +16,10 @@
 
 #pragma once
 
-#include "oink/solver.hpp"
+#ifndef NOINK
+# include "oink/solver.hpp"
+#endif
+
 #include "energy_game.hpp"
 #include "solvers/potential/potential_teller.hpp"
 #include "solvers/potential/potential_computers.hpp"
@@ -31,8 +34,14 @@ ADD_TIME_TO_STATS (tm_solving);
 # define log(T)
 # define log_stat(T)
 #else
-# define log(T) do { if (this->trace >= 1) { this->logger << T; } } while (0)
-# define log_stat(T) do { this->logger << T; } while (0)
+# ifdef NOINK
+#  include "verbose.hh"
+#  define log(T) verb_do (1, { vout << T; })
+#  define log_stat(T) verb_do (0, { vout << T; })
+# else
+#  define log(T) do { if (this->trace >= 1) { this->logger << T; } } while (0)
+#  define log_stat(T) do { this->logger << T; } while (0)
+# endif
 #endif
 
 
@@ -40,12 +49,26 @@ namespace pg {
   template <template <typename EG, typename PT> typename PotentialComputer>
   class FVISolver : public Solver {
     public:
+      using weight_t    = gmp_weight_t;
+      // The energy game has two extra pieces of info for the potential teller.
+      using energy_game_t = energy_game<weight_t, potential::extra_edge_info<weight_t>>;
+      using teller_t = potential::potential_teller<energy_game_t>;
+
+    public:
+#ifndef NOINK
       FVISolver (Oink& oink, Game& game)  :
         Solver (oink, game),
         nrg_game (this->game, logger, trace),
         teller (nrg_game),
-        computer (nrg_game, teller, logger, trace)
+        computer (nrg_game, teller)
       { }
+#else
+      FVISolver (energy_game_t& nrg_game)  :
+        nrg_game (nrg_game),
+        teller (nrg_game),
+        computer (nrg_game, teller)
+      { }
+#endif
 
       virtual ~FVISolver () {}
 
@@ -72,7 +95,9 @@ namespace pg {
 
         auto&& pot = teller.get_potential ();
         for (auto&& v : nrg_game.vertices ()) {
+#ifndef NOINK
           if (game.isSolved (v)) continue;
+#endif
           log ("vertex " << v << (nrg_game.is_max (v) ? " (max) " : " (min) "));
           log (" potential " << pot[v]);
           if (auto strat = computer.strategy_for (v)) {
@@ -97,13 +122,13 @@ namespace pg {
 
         PRINT_TIME (compute);
       }
-    private:
-      using weight_t    = gmp_weight_t;
-      // The energy game has two extra pieces of info for the potential teller.
-      using energy_game_t = energy_game<weight_t, potential::extra_edge_info<weight_t>>;
-      using teller_t = potential::potential_teller<energy_game_t>;
 
+    private:
+#ifndef NOINK
       energy_game_t nrg_game;
+#else
+      energy_game_t& nrg_game;
+#endif
       teller_t teller;
       PotentialComputer<energy_game_t, teller_t> computer;
   };

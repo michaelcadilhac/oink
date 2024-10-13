@@ -11,9 +11,13 @@ ADD_TO_STATS (qd_pot_backtrack);
 #ifdef NDEBUG
 # define log(T)
 #else
-# define log(T) do { if (this->trace >= 1) { this->logger << T; } } while (0)
+# ifdef NOINK
+#  include "verbose.hh"
+#  define log(T) verb_do (1, { vout << T; })
+# else
+#  define log(T) do { if (nrg_game.trace >= 1) { nrg_game.logger << T; } } while (0)
+# endif
 #endif
-
 
 namespace potential {
   template <bool SwapRoles, typename EnergyGame, typename PotentialTeller>
@@ -32,8 +36,8 @@ namespace potential {
       // be for (max ^ SwapRoles)
       // vertices.
     public:
-      potential_fvi_qd_swap (EnergyGame& nrg_game, PotentialTeller& teller, logger_t& logger, int trace) :
-        potential_computer<EnergyGame, PotentialTeller> (nrg_game, teller, logger, trace),
+      potential_fvi_qd_swap (EnergyGame& nrg_game, PotentialTeller& teller) :
+        potential_computer<EnergyGame, PotentialTeller> (nrg_game, teller),
         F (nrg_game.size ()),
         strat (nrg_game.size (), -1),
         nonneg_out_edges_to_Fc (nrg_game.size (), 0) {
@@ -88,7 +92,7 @@ namespace potential {
           else
             F[v] = std::ranges::any_of (nrg_game.outs (v), [this, &v] (auto& x) { return SwapRoles ? W (v, x) > 0 : W (v, x) < 0; });
           if (F[v]) {
-            potential[v] = zero_number (*nrg_game.get_infty ());
+            potential[v] = 0; //zero_number (*nrg_game.get_infty ());
             log ("Putting " << v << " in F, with pot 0.\n");
           }
         }

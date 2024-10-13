@@ -56,6 +56,7 @@ namespace potential {
           if (teller.get_potential ()[v] + potential[v] >= nrg_game.get_infty ())
             max_backtrack.push_back (v);
         }
+
         while (not max_backtrack.empty ()) {
           auto v = max_backtrack.back ();
           max_backtrack.pop_back ();

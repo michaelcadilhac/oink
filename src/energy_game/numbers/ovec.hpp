@@ -100,6 +100,7 @@ class ovec {
     bool set_if_plus_larger (const ovec& p1, const ovec& p2) { return set_if_plus (p1, p2, true); }
     bool set_if_plus_smaller (const ovec& p1, const ovec& p2) { return set_if_plus (p1, p2, false); }
 
+#ifndef NOINK
     static ovec priority_to_number (const priority_t& prio,
                                     const pg::Game& pgame,
                                     bool swap) {
@@ -123,6 +124,7 @@ class ovec {
     static ovec zero_number (const ovec& other) {
       return other.vec.size (); // initialized to 0
     }
+#endif
 
     std::ostream& print (std::ostream& os) const {
       os << "[";

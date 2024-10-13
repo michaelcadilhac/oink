@@ -1,5 +1,8 @@
 #pragma once
 
+#include <set>
+#include <vector>
+#include <queue>
 #include "solvers/stats.hpp"
 
 ADD_TO_STATS (eg_reduce);
@@ -46,8 +49,13 @@ namespace potential {
                                              vert_timestamps (ngame.size ()),
                                              time (1) {
         potential.reserve (nrg_game.size ());
-        for (size_t i = 0; i < nrg_game.size (); ++i)
+        for (size_t i = 0; i < nrg_game.size (); ++i) {
+#ifndef NOINK // FIXME: Actually, zero makes sense in NOINK.
           potential.push_back (zero_number<typename weight_t::number_t> (*infty));
+#else
+          potential.push_back (0);
+#endif
+        }
 
         undecided_verts = std::set (nrg_game.vertices ().begin (), nrg_game.vertices ().end ());
         // TODO: some nodes are already solved: flush them by backward propagation.

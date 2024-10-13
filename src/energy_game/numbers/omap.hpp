@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include "omap_cmp.hpp"
 
 template <typename T, typename U>
@@ -135,6 +136,7 @@ class omap {
       return set_if_plus (p1, p2, LHS_GREATER);
     }
 
+#ifndef NOINK
     static omap priority_to_number (const priority_t& prio,
                                     const pg::Game&,
                                     bool swap) {
@@ -157,6 +159,7 @@ class omap {
     static omap zero_number (const omap&) {
       return omap ();
     }
+#endif // NOINK
 
     std::ostream& print (std::ostream& os) const {
       os << "[";

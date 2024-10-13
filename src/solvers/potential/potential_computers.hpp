@@ -10,16 +10,18 @@ namespace potential {
       PotentialTeller&         teller;
       potential_t              potential;
 
-      logger_t& logger;
-      int trace = 0;
     public:
       potential_computer (EnergyGame& ngame,
-                          PotentialTeller& teller,
-                          logger_t& logger, int trace) :
-        nrg_game (ngame), teller (teller), logger (logger), trace (trace) {
+                          PotentialTeller& teller) :
+        nrg_game (ngame), teller (teller) {
         potential.reserve (nrg_game.size ());
-        for (size_t i = 0; i < nrg_game.size (); ++i)
+        for (size_t i = 0; i < nrg_game.size (); ++i) {
+#ifndef NOINK // FIXME: Actually, zero makes sense in NOINK.
           potential.push_back (zero_number (*nrg_game.get_infty ()));
+#else
+          potential.push_back (0);
+#endif
+        }
       }
 
       virtual const potential_t& get_potential () const {

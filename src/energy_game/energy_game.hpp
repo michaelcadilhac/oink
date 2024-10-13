@@ -16,11 +16,15 @@ class energy_game {
     std::vector<bool>  max_owned;
     std::vector<vertex_t> max_verts, min_verts;
 
+#ifndef NOINK
+  public:
     logger_t& logger;
     int trace = 0;
+#endif
 
   public:
 
+#ifndef NOINK
     energy_game (const pg::Game& pgame, logger_t& logger, int trace, bool swap = false) :
       nverts (pgame.nodecount ()),
       nedges (pgame.edgecount ()),
@@ -67,15 +71,32 @@ class energy_game {
           min_verts.push_back (v);
       }
     }
+#else
+    energy_game () : nverts (0) {}
+#endif
 
   public:
+    void add_state (const vertex_t& v) {
+      nverts = std::max (nverts, static_cast<size_t> (v + 1));
+      if (out_neighbors.size () < nverts) {
+        out_neighbors.resize (nverts);
+        in_neighbors.resize (nverts);
+        max_owned.resize (nverts);
+      }
+    }
+
     void add_transition (const vertex_t& v1, const W& w, const vertex_t& v2) {
       W tw = W::copy (w);
+      assert (static_cast<size_t> (v1) < out_neighbors.size ());
+      assert (static_cast<size_t> (v2) < in_neighbors.size ());
       out_neighbors[v1].push_back (std::tuple_cat (std::make_pair (W::steal (tw), v2),
                                                    std::tuple<ExtraEdgeInfo...> {}));
       in_neighbors[v2].push_back (std::tuple_cat (std::make_pair (W::proxy (tw), v1),
                                                   std::tuple<ExtraEdgeInfo...> {}));
-      //infty = max (abs (*w) * nverts, *infty); // this is being lazy, but add_transition is used only for debug.
+    }
+
+    void set_infty (const W& w) {
+      infty = w;
       minus_infty = -*infty;
     }
 

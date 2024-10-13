@@ -58,6 +58,7 @@ class gmp : public boost::multiprecision::mpz_int {
       return false;
     }
 
+#ifndef NOINK
     static gmp priority_to_number (const priority_t& prio,
                                      const pg::Game& pgame,
                                      bool swap)
@@ -117,6 +118,7 @@ class gmp : public boost::multiprecision::mpz_int {
     static gmp zero_number (const gmp&) {
       return gmp (0);
     }
+#endif // NOINK
 
     std::ostream& print (std::ostream& os) const { return os << *static_cast<const gmp_t*> (this); }
 };

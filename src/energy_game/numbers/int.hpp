@@ -24,6 +24,7 @@ bool set_if_plus_smaller<int64_t> (int64_t& w, const int64_t& w1, const int64_t&
   return false;
 }
 
+#ifndef NOINK
 template <>
 inline
 int64_t priority_to_number<int64_t> (const priority_t& prio,
@@ -55,3 +56,4 @@ inline
 int64_t zero_number<int64_t> (const int64_t&) {
   return 0;
 }
+#endif // NOINK
