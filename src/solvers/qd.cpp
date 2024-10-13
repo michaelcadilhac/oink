@@ -87,7 +87,7 @@ namespace pg {
         msr[pos] = msr[best_succ] + weight[pos];
       } else {
         ingame[pos] = false;
-        msr[pos] = LONG_MAX;
+        msr[pos] = nrg_game.get_infty ();
       }
 
       for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
@@ -361,9 +361,9 @@ namespace pg {
       for (pos = BQset.find_first (); pos < (uint) n_nodes; pos = BQset.find_next (pos)) {
         BQset[pos] = false;
         oldmsr = msr[pos];
-        msr[pos] = LONG_MAX;
+        msr[pos] = nrg_game.get_infty ();
 
-      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
+        for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
           if (ingame[predecessor]) {
             nextpush (predecessor);
           }
@@ -400,8 +400,9 @@ namespace pg {
       atr ();
       promo ();
     }
+
     log_stat ("QD iterations: " << GET_STAT (qd_iterations) << "\n");
-    
+
     for (pos = 0; pos < (uint) n_nodes; ++pos) {
       if (ingame[pos]) {
         Solver::solve (pos, 1, strategy[pos]);
