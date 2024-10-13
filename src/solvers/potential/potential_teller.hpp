@@ -144,5 +144,25 @@ namespace potential {
       const potential_t& get_potential () const {
         return potential;
       }
+
+      std::ostream& print (std::ostream& os) {
+        os << "digraph G {" << std::endl;
+        for (auto&& v : nrg_game.vertices ()) {
+          os << v << " [ shape=\"" << (nrg_game.is_max (v) ? "box" : "circle")
+             << "\", label=\"" << v << "\"";
+          os << "];" << std::endl;
+          for (auto&& e : nrg_game.outs (v))
+            os << v << " -> " << std::get<1> (e)
+               << " [label=\"" << get_adjusted_weight (v, std::get<0> (e), std::get<1> (e), std::get<2> (e))
+               << "\"];" << std::endl;
+        }
+        os << "}" << std::endl;
+        return os;
+      }
   };
+}
+
+template <typename EnergyGame>
+std::ostream& operator<< (std::ostream& os, potential::potential_teller<EnergyGame>& t) {
+  return t.print (os);
 }

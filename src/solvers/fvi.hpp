@@ -59,7 +59,7 @@ namespace pg {
         log ("Infinity: " << nrg_game.get_infty () << std::endl);
         do {
           TICK (turns);
-          log (nrg_game << std::endl);
+          log (teller << std::endl);
           START_TIME (compute);
           computer.compute ();
           STOP_TIME (compute);
