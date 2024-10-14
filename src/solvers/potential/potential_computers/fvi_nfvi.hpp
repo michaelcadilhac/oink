@@ -31,12 +31,23 @@ namespace potential {
       std::vector<size_t> nonneg_out_edges_to_Fc; // Nonzero entries will only
       // be for (max ^ SwapRoles)
       // vertices.
+
+      constexpr static auto comp_max =
+        [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 > w2 : w1 < w2; };
+      mutable_priority_queue<vertex_t, weight_t, decltype (comp_max)> max_pq;
+
+      constexpr static auto comp_min =
+        [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
+      mutable_priority_queue<vertex_t, weight_t, decltype (comp_min)> min_outedge_pq;
+
     public:
       potential_fvi_nfvi_swap (EnergyGame& nrg_game, PotentialTeller& teller, logger_t& logger, int trace) :
         potential_computer<EnergyGame, PotentialTeller> (nrg_game, teller, logger, trace),
         F (nrg_game.size ()),
         strat (nrg_game.size (), -1),
-        nonneg_out_edges_to_Fc (nrg_game.size (), 0) {
+        nonneg_out_edges_to_Fc (nrg_game.size (), 0),
+        max_pq (nrg_game.size ()),
+        min_outedge_pq (nrg_game.size ()) {
         for (auto& p : potential)
           p = nrg_game.get_infty ();
       }
@@ -92,12 +103,7 @@ namespace potential {
           }
         }
 
-        auto comp1 = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 > w2 : w1 < w2; };
-        auto max_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp1)> (nrg_game.size ());
-        auto comp2 = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
-        auto min_outedge_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp2)> (nrg_game.size ());
-
-        auto add_max_vertex_to_pqs = [this, &max_pq, &min_outedge_pq] (vertex_t v) {
+        auto add_max_vertex_to_pqs = [this] (vertex_t v) {
           weight_t max_succ = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
           for (auto&& o : nrg_game.outs (v)) {
             if (not F[State (o)] or teller.is_decided (State (o))) continue;
@@ -142,7 +148,7 @@ namespace potential {
          * counter is zero).
          */
         auto decrease_preds =
-          [this, &max_pq, &min_outedge_pq, &add_max_vertex_to_pqs] (vertex_t v) {
+          [this, &add_max_vertex_to_pqs] (vertex_t v) {
             for (auto&& i : nrg_game.ins (v)) {
               if (F[State (i)]) continue;
 
@@ -154,8 +160,8 @@ namespace potential {
                 else if (nonneg_out_edges_to_Fc[State (i)] == 0) {
                   weight_t w = weight_t::copy (W (i, v));
                   w += potential[v];
-                  min_outedge_pq.set (State (i), weight_t::proxy (w), max_pq.only_if_lower);
-                  max_pq.set (State (i), weight_t::steal (w), max_pq.only_if_higher);
+                  if (min_outedge_pq.set (State (i), weight_t::proxy (w), max_pq.only_if_lower))
+                    max_pq.set (State (i), weight_t::steal (w), max_pq.alway_update);
                 }
               }
               else { // Predecessor is Min
