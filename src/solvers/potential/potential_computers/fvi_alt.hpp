@@ -1,31 +1,32 @@
 #pragma once
 
 namespace potential {
-  template <typename EnergyGame, typename PotentialTeller>
-  class potential_fvi_alt : public potential_computer<EnergyGame, PotentialTeller> {
+  template <template <bool B, typename EG, typename PT> typename SwapComputer,
+            typename EnergyGame, typename PotentialTeller>
+  class potential_fvi_alt_gen : public potential_computer<EnergyGame, PotentialTeller> {
     private:
-      potential_fvi_swap<false, EnergyGame, PotentialTeller> fvi;
-      potential_fvi_swap<true, EnergyGame, PotentialTeller> fvi_swap;
+      SwapComputer<false, EnergyGame, PotentialTeller> computer;
+      SwapComputer<true, EnergyGame, PotentialTeller>  computer_swap;
       bool swap = true;
     public:
-      potential_fvi_alt (EnergyGame& game, PotentialTeller& teller, logger_t& logger, int trace) :
+      potential_fvi_alt_gen (EnergyGame& game, PotentialTeller& teller, logger_t& logger, int trace) :
         potential_computer<EnergyGame, PotentialTeller> (game, teller, logger, trace),
-        fvi (game, teller, logger, trace), fvi_swap (game, teller, logger, trace) {}
+        computer (game, teller, logger, trace), computer_swap (game, teller, logger, trace) {}
 
 
       std::optional<vertex_t> strategy_for (vertex_t v) {
         if (this->nrg_game.is_min (v))
-          return fvi_swap.strategy_for (v);
+          return computer_swap.strategy_for (v);
         else
-          return fvi.strategy_for (v);
+          return computer.strategy_for (v);
       }
 
       void compute () {
         swap ^= true;
         if (swap)
-          fvi_swap.compute ();
+          computer_swap.compute ();
         else
-          fvi.compute ();
+          computer.compute ();
 
         // If it's all zeroes, then do one more round of the other fvi and be done.
         auto&& pot = get_potential ();
@@ -39,17 +40,25 @@ namespace potential {
           return;
         swap ^= true;
         if (swap)
-          fvi_swap.compute ();
+          computer_swap.compute ();
         else
-          fvi.compute ();
+          computer.compute ();
       }
 
       virtual
       const potential_computer<EnergyGame, PotentialTeller>::potential_t& get_potential () const {
         if (swap)
-          return fvi_swap.get_potential ();
+          return computer_swap.get_potential ();
         else
-          return fvi.get_potential ();
+          return computer.get_potential ();
       }
   };
+
+  template <typename EnergyGame, typename PotentialTeller>
+  using potential_fvi_alt = potential_fvi_alt_gen<potential::potential_fvi_swap,
+                                                  EnergyGame, PotentialTeller>;
+
+  template <typename EnergyGame, typename PotentialTeller>
+  using potential_fvi_nfvi_alt = potential_fvi_alt_gen<potential::potential_fvi_nfvi_swap,
+                                                       EnergyGame, PotentialTeller>;
 }

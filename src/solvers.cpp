@@ -99,9 +99,13 @@ Solvers::Solvers()
        return std::make_unique<FVISolver<potential::potential_fvi_nfvi>> (oink, game);
     });
 
-    // _add("fvi-alt", "fast value iteration (alternating)", 0, [] (Oink& oink, Game& game) {
-    //   return std::make_unique<FVISolver<potential::potential_fvi_alt>> (oink, game);
-    // });
+    _add("fvi-alt", "fast value iteration (alternating)", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<FVISolver<potential::potential_fvi_alt>> (oink, game);
+    });
+
+    _add("fvi-nfvi-alt", "fast value iteration (alternating)", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<FVISolver<potential::potential_fvi_nfvi_alt>> (oink, game);
+    });
 
     _add("qd", "quasi-dominions", 0, [] (Oink& oink, Game& game) { return std::make_unique<QDSolver>(oink, game); });
     _add("osi", "OSI", 0, [] (Oink& oink, Game& game) { return std::make_unique<OSISolver>(oink, game); });
