@@ -18,7 +18,7 @@ class mutable_priority_queue {
         Priority priority;
 
         kp_pair (const Key& key, Priority&& priority) :
-          priority (std::forward<Priority> (priority)), key (key) {}
+          key (key), priority (std::forward<Priority> (priority)) {}
     };
     struct kp_pair_compare {
         Compare comp;
@@ -68,7 +68,7 @@ class mutable_priority_queue {
     /** Sets the priority for the given key. If not present, it will be added,
      *  otherwise it will be updated. */
     bool set (const Key& key, Priority&& priority, update_cond update_if = alway_update) {
-      assert (key < key_to_handle.size ());
+      assert (static_cast<size_t> (key) < key_to_handle.size ());
       auto& h = key_to_handle[key];
       if (h == null_handle) {
         h = heap.emplace (key, std::forward<Priority> (priority));
