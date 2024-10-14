@@ -13,7 +13,7 @@ using namespace std::string_literals;
 # define COMP_VARIANT potential_fvi
 #endif
 
-int               utils::verbose = 1;
+int               utils::verbose = 0;
 utils::voutstream utils::vout;
 
 
