@@ -14,7 +14,17 @@
  * limitations under the License.
  */
 
+#include "solvers/stats.hpp"
 #include "osi.hpp"
+
+ADD_TO_STATS (osi_iterations);
+
+#ifdef NDEBUG
+# define log_stat(T)
+#else
+# define log_stat(T) do { this->logger << T; } while (0)
+#endif
+
 
 #define _INLINE_ __attribute__ ((always_inline))
 
@@ -276,6 +286,7 @@ namespace pg {
     init ();
 
     while (improve) {
+      TICK (osi_iterations);
       innesco ();
 
       improve = false;
@@ -316,6 +327,8 @@ namespace pg {
         }
       }
     }
+
+    log_stat ("stat: turns: " << GET_STAT (osi_iterations) << "\n");
 
     for (pos = 0; pos < n_nodes; ++pos) {
       if (Top[pos]) {
