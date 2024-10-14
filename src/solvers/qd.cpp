@@ -401,7 +401,7 @@ namespace pg {
       promo ();
     }
 
-    log_stat ("QD iterations: " << GET_STAT (qd_iterations) << "\n");
+    log_stat ("stat: turns: " << GET_STAT (qd_iterations) << "\n");
 
     for (pos = 0; pos < (uint) n_nodes; ++pos) {
       if (ingame[pos]) {
