@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstring>
 #include <chrono>
 
 #ifndef NDEBUG
