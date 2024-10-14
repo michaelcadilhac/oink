@@ -9,9 +9,9 @@ namespace potential {
       SwapComputer<true, EnergyGame, PotentialTeller>  computer_swap;
       bool swap = true;
     public:
-      potential_fvi_alt_gen (EnergyGame& game, PotentialTeller& teller, logger_t& logger, int trace) :
-        potential_computer<EnergyGame, PotentialTeller> (game, teller, logger, trace),
-        computer (game, teller, logger, trace), computer_swap (game, teller, logger, trace) {}
+      potential_fvi_alt_gen (EnergyGame& game, PotentialTeller& teller) :
+        potential_computer<EnergyGame, PotentialTeller> (game, teller),
+        computer (game, teller), computer_swap (game, teller) {}
 
 
       std::optional<vertex_t> strategy_for (vertex_t v) {
