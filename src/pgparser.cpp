@@ -62,11 +62,6 @@ read_int64(std::streambuf *rd, int64_t *res)
     int ch;
     bool minus = false;
     if ((ch=rd->sgetc()) == EOF) return false;
-    if (ch == '-') {
-      minus = true;
-      rd->sbumpc();
-      if ((ch=rd->sgetc()) == EOF) return false;
-    }
     if (ch < '0' or ch > '9') { return false; }
     while (true) {
         rd->sbumpc();

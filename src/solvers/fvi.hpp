@@ -23,6 +23,7 @@
 
 #include "solvers/stats.hpp"
 
+ADD_TO_STATS (turns);
 ADD_TIME_TO_STATS (compute);
 ADD_TIME_TO_STATS (tm_solving);
 
@@ -57,7 +58,8 @@ namespace pg {
 
         log ("Infinity: " << nrg_game.get_infty () << std::endl);
         do {
-          log (nrg_game << std::endl);
+          TICK (turns);
+          log (teller << std::endl);
           START_TIME (compute);
           computer.compute ();
           STOP_TIME (compute);
@@ -83,6 +85,7 @@ namespace pg {
           }
         }
 
+        log_stat ("stat: turns = " << GET_STAT (turns) << "\n");
         log_stat ("stat: eg_pot_update = " << GET_STAT (eg_pot_update) << "\n");
         log_stat ("stat: eg_reduce = " << GET_STAT (eg_reduce) << "\n");
         log_stat ("stat: pot_compute = " << GET_STAT (pot_compute) << "\n");
@@ -96,7 +99,8 @@ namespace pg {
       }
     private:
       using weight_t    = gmp_weight_t;
-      using energy_game_t = energy_game<weight_t>;
+      // The energy game has two extra pieces of info for the potential teller.
+      using energy_game_t = energy_game<weight_t, potential::extra_edge_info<weight_t>>;
       using teller_t = potential::potential_teller<energy_game_t>;
 
       energy_game_t nrg_game;

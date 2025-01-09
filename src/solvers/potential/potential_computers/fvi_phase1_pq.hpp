@@ -3,11 +3,11 @@
 #include "solvers/stats.hpp"
 #include "solvers/potential/potential_computers/mutable_priority_queue.hh"
 
-ADD_TO_STATS (pot_compute);
-ADD_TO_STATS (pot_iter);
-ADD_TO_STATS (pot_phase1);
-ADD_TO_STATS (pot_phase2);
-ADD_TO_STATS (pot_backtrack);
+ADD_TO_STATS (pq1_pot_compute);
+ADD_TO_STATS (pq1_pot_iter);
+ADD_TO_STATS (pq1_pot_phase1);
+ADD_TO_STATS (pq1_pot_phase2);
+ADD_TO_STATS (pq1_pot_backtrack);
 
 #ifdef NDEBUG
 # define log(T)
@@ -21,7 +21,7 @@ namespace potential {
   requires // checks that EnergyGame was defined with extra info on the edges
     std::same_as <std::tuple_element_t<2, typename EnergyGame::neighbors_t::value_type>,
                   typename PotentialTeller::extra_edge_info_t>
-  class potential_fvi_swap : public potential_computer<EnergyGame, PotentialTeller> {
+  class potential_fvi_phase1_pq_swap : public potential_computer<EnergyGame, PotentialTeller> {
       using weight_t = EnergyGame::weight_t;
       using neighbor_t = typename EnergyGame::neighbors_t::value_type;
       using potential_computer<EnergyGame, PotentialTeller>::nrg_game;
@@ -33,7 +33,7 @@ namespace potential {
       // be for (max ^ SwapRoles)
       // vertices.
     public:
-      potential_fvi_swap (EnergyGame& nrg_game, PotentialTeller& teller, logger_t& logger, int trace) :
+      potential_fvi_phase1_pq_swap (EnergyGame& nrg_game, PotentialTeller& teller, logger_t& logger, int trace) :
         potential_computer<EnergyGame, PotentialTeller> (nrg_game, teller, logger, trace),
         F (nrg_game.size ()),
         strat (nrg_game.size (), -1),
@@ -71,7 +71,7 @@ namespace potential {
 
       std::vector<vertex_t> to_backtrack;
       void compute () {
-        TICK (pot_compute);
+        TICK (pq1_pot_compute);
 
         /* We start by determining in linear time the set N of vertices from
          * which Min can force to immediately visit an edge of negative weight;
@@ -82,7 +82,6 @@ namespace potential {
          * (at least) a non-negative outgoing edge.
          */
         log ("Initialization of F\n");
-        // All the decided vertices are marked true, in particular.
         F.assign (nrg_game.size (), true);
         for (auto& p : potential)
           p = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
@@ -98,9 +97,23 @@ namespace potential {
           }
         }
 
-        std::queue<vertex_t> phase1_queue;
-        auto comp = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
-        auto phase2_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp)> (nrg_game.size ());
+        auto comp1 = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 > w2 : w1 < w2; };
+        auto phase1_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp1)> (nrg_game.size ());
+        auto comp2 = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
+        auto phase2_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp2)> (nrg_game.size ());
+
+        auto add_vertex_to_phase1_pq = [this, &phase1_pq] (vertex_t v) {
+          weight_t max_succ = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
+          for (auto&& o : nrg_game.outs (v)) {
+            if (not F[State (o)] or teller.is_decided (State (o))) continue;
+
+            if (SwapRoles)
+              set_if_plus_smaller (*max_succ, *W (v, o), *potential[State (o)]);
+            else
+              set_if_plus_larger (*max_succ, *W (v, o), *potential[State (o)]);
+          }
+          phase1_pq.set (v, std::move (max_succ), phase1_pq.only_if_higher);
+        };
 
         // Extract the minimal transitions going from  Fc to F.
         std::ranges::fill(nonneg_out_edges_to_Fc, 0);
@@ -112,14 +125,14 @@ namespace potential {
                 if (not F[State (o)] and (SwapRoles ? W (v, o) <= 0 : W (v, o) >= 0))
                   nonneg_out_edges_to_Fc[v]++;
               if (nonneg_out_edges_to_Fc[v] == 0)
-                phase1_queue.push (v);
+                add_vertex_to_phase1_pq (v);
             }
           }
           else {
             for (auto&& i : nrg_game.ins (v)) {
               if (not F[State (i)] and not (nrg_game.is_max (State (i)) ^ SwapRoles)) {
                 // Use a weight proxy to avoid duplication.
-                phase2_pq.set (State (i), weight_t::proxy (W (i, v)),
+                phase2_pq.set (State (i), weight_t::proxy (const_cast<weight_t&> (W (i, v))),
                                phase2_pq.only_if_higher);
               }
             }
@@ -133,46 +146,44 @@ namespace potential {
          * counter is zero).
          */
         auto decrease_preds =
-          [this, &phase1_queue, &phase2_pq] (vertex_t v) {
+          [this, &phase1_pq, &phase2_pq, &add_vertex_to_phase1_pq] (vertex_t v) {
             for (auto&& i : nrg_game.ins (v)) {
-              if (not F[State (i)] and not (nrg_game.is_max (State (i)) ^ SwapRoles)) {
+              if (F[State (i)]) continue;
+
+              if (nrg_game.is_max (State (i)) ^ SwapRoles) { // Predecessor is Max
+                if (nonneg_out_edges_to_Fc[State (i)] > 0 and (SwapRoles ? W (i, v) <= 0 : W (i, v) >= 0)) {
+                  if (--nonneg_out_edges_to_Fc[State (i)] == 0)
+                    add_vertex_to_phase1_pq (State (i));
+                }
+                else if (nonneg_out_edges_to_Fc[State (i)] == 0)
+                  phase1_pq.set (State (i), W (i, v) + potential[v], phase1_pq.only_if_higher);
+              }
+              else { // Predecessor is Min
                 weight_t w = weight_t::copy (W (i, v));
                 w += potential[v];
                 phase2_pq.set (State (i), weight_t::steal (w), phase2_pq.only_if_higher); //!! should be steal
               }
-              if (nonneg_out_edges_to_Fc[State (i)] and (SwapRoles ? W (i, v) <= 0 : W (i, v) >= 0)) {
-                assert ((SwapRoles ^ nrg_game.is_max (State (i))) and not F[State (i)]);
-                if (--nonneg_out_edges_to_Fc[State (i)] == 0)
-                  phase1_queue.push (State (i));
-              }
+
             }
           };
 
         while (true) {
-          TICK (pot_iter);
+          TICK (pq1_pot_iter);
           /* 1. If there is a Max vertex v notin F, all of whose non-negative outgoing
            * edges vv' lead to F, set, En+(v) to be the maximal w(vv') + En+(v'),
            * add v to F, and go back to 1.
            */
           log ("Phase 1.\n");
-          while (not phase1_queue.empty ()) {
-            TICK (pot_phase1);
-            vertex_t v = phase1_queue.front ();
-            phase1_queue.pop ();
-            assert (not F[v] and nonneg_out_edges_to_Fc[v] == 0);
-            potential[v] = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
-            for (auto&& o : nrg_game.outs (v)) {
-              if (teller.is_decided (State (o))) continue;
-              if (SwapRoles ? W (v, o) > 0 : W (v, o) < 0) continue;
-              assert (F[State (o)]);
-              if (SwapRoles)
-                set_if_plus_smaller (*potential[v], *W (v, o), *potential[State (o)]);
-              else
-                set_if_plus_larger (*potential[v], *W (v, o), *potential[State (o)]);
-            }
-            log ("Putting " << v << " in F with pot " << potential[v] << std::endl);
-            F[v] = true;
-            decrease_preds (v);
+          while (not phase1_pq.empty ()) {
+            TICK (pq1_pot_phase1);
+            auto from = phase1_pq.top ().key;
+            auto weight = std::move (phase1_pq.top ().priority);
+            phase1_pq.pop ();
+            assert (not F[from] and nonneg_out_edges_to_Fc[from] == 0);
+            potential[from] = weight_t::steal_or_proxy (weight);
+            log ("Putting " << from << " in F with pot " << potential[from] << std::endl);
+            F[from] = true;
+            decrease_preds (from);
           }
 
           /* 2. Otherwise, let vv' be an edge from VMin \ F to F (it is
@@ -185,7 +196,7 @@ namespace potential {
           log ("Phase 2.\n");
           bool change = false;
           while (not phase2_pq.empty ()) {
-            TICK (pot_phase2);
+            TICK (pq1_pot_phase2);
             auto from = phase2_pq.top ().key;
             auto weight = weight_t::steal_or_proxy (const_cast<weight_t&> (phase2_pq.top ().priority));
             phase2_pq.pop ();
@@ -226,7 +237,7 @@ namespace potential {
 
         // In addition, we compute the attractor of the newly discovered decided nodes
         while (not to_backtrack.empty ()) {
-          TICK (pot_backtrack);
+          TICK (pq1_pot_backtrack);
           auto v = to_backtrack.back ();
           to_backtrack.pop_back ();
           for (auto&& wi : nrg_game.ins (v)) {
@@ -259,8 +270,7 @@ namespace potential {
   };
 
   template <typename EG, typename PT>
-  using potential_fvi = potential_fvi_swap<false, EG, PT>;
+  using potential_fvi_phase1_pq = potential_fvi_phase1_pq_swap<false, EG, PT>;
 }
 
 #undef log
-#undef State
