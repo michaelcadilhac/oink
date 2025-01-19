@@ -96,6 +96,12 @@ Solvers::Solvers()
         (oink, game);
     });
 
+    _add("downsets-st", "downsets-st", 0, [] (Oink& oink, Game& game) {
+      return std::make_unique<
+        DownsetsSolver<posets::downsets::sharingtree_backed<posets::vectors::vector_backed<int16_t>>>>
+        (oink, game);
+    });
+
 }
 
 void
