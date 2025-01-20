@@ -38,12 +38,15 @@ namespace pg {
   }
 
   void SEPMSolver::run () {
-    for (pos = 0; pos < n_nodes; ++pos) {
-      cost[pos] = 0;
-      count[pos] = 0;
-      weight[pos] = nrg_game.some_outweight (pos);
+    limit = weight_t (0);
+    oldcost = weight_t (0);
 
-      if (nrg_game.some_outweight (pos) > 0) {
+    for (pos = 0; pos < n_nodes; ++pos) {
+      cost[pos] = weight_t (0);
+      count[pos] = 0;
+      weight[pos] = weight_t::proxy (nrg_game.weight (pos));
+
+      if (nrg_game.weight (pos) > 0) {
         TAtr.push (pos);
         BAtr[pos] = true;
         limit += weight[pos];
@@ -66,7 +69,7 @@ namespace pg {
       best_succ = -1;
 
       if (nrg_game.is_min (pos)) {
-        for (const auto& [w, successor] : nrg_game.outs (pos)) {
+        for (const auto& successor : nrg_game.outs (pos)) {
           if (best_succ == -1) {
             best_succ = successor;
             count[pos] = 1;
@@ -95,7 +98,7 @@ namespace pg {
           }
         }
       } else {
-        for (const auto& [w, successor] : nrg_game.outs (pos)) {
+        for (const auto& successor : nrg_game.outs (pos)) {
           if (best_succ == -1) {
             best_succ = successor;
           } else {
@@ -122,7 +125,7 @@ namespace pg {
         }
       }
 
-      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
+      for (const auto& predecessor : nrg_game.ins (pos)) {
         if (!BAtr[predecessor] && (cost[predecessor] < limit) && ((cost[pos] == limit) || (cost[predecessor] < cost[pos] + weight[predecessor]))) {
           if (nrg_game.is_min (predecessor)) {
             if (cost[predecessor] >= oldcost + weight[predecessor]) {

@@ -21,36 +21,25 @@ namespace potential {
           return computer.strategy_for (v);
       }
 
-      void compute () {
+      bool compute () {
+        bool change;
+        swap ^= true;
+        if (swap)
+          change = computer_swap.compute ();
+        else
+          change = computer.compute ();
+
+        if (change)
+          return true;
+
+        // Do one more round of the other fvi and be done.
         swap ^= true;
         if (swap)
           computer_swap.compute ();
         else
           computer.compute ();
 
-        // If it's all zeroes, then do one more round of the other fvi and be done.
-        auto&& pot = get_potential ();
-        bool no_change = true;
-        for (const auto& v : this->teller.undecided_vertices ())
-          if (pot[v] != 0) {
-            no_change = false;
-            break;
-          }
-        if (not no_change)
-          return;
-        swap ^= true;
-        if (swap)
-          computer_swap.compute ();
-        else
-          computer.compute ();
-      }
-
-      virtual
-      const potential_computer<EnergyGame, PotentialTeller>::potential_t& get_potential () const {
-        if (swap)
-          return computer_swap.get_potential ();
-        else
-          return computer.get_potential ();
+        return false; // We're done
       }
   };
 

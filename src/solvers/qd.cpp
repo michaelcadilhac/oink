@@ -70,7 +70,7 @@ namespace pg {
       best_succ = -1;
 
       if (nrg_game.is_min (pos)) {
-        for (const auto& [w, successor] : nrg_game.outs (pos)) {
+        for (const auto& successor : nrg_game.outs (pos)) {
           if (best_succ == -1 || (msr[best_succ] > msr[successor])) {
             best_succ = successor;
             count[pos] = 1;
@@ -87,10 +87,10 @@ namespace pg {
         msr[pos] = msr[best_succ] + weight[pos];
       } else {
         ingame[pos] = false;
-        msr[pos] = nrg_game.get_infty ();
+        msr[pos] = weight_t::copy (nrg_game.get_infty ());
       }
 
-      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
+      for (const auto& predecessor : nrg_game.ins (pos)) {
         if (ingame[predecessor] && (!ingame[pos] || msr[predecessor] < msr[pos] + weight[predecessor])) {
           if (nrg_game.is_min (predecessor)) {
             if (msr[predecessor] == 0) {
@@ -152,7 +152,7 @@ namespace pg {
     while (TProm.nonempty ()) {
       pos = TProm.pop ();
 
-      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
+      for (const auto& predecessor : nrg_game.ins (pos)) {
         if (ingame[predecessor] && !BQset[predecessor] && (msr[predecessor] > 0)) {
           if (nrg_game.is_max (predecessor)) {
             if (strategy[predecessor] == (int) pos) {
@@ -189,7 +189,7 @@ namespace pg {
       best_succ = -1;
 
       if (nrg_game.is_max (pos)) {
-        for (const auto& [w, successor] : nrg_game.outs (pos)) {
+        for (const auto& successor : nrg_game.outs (pos)) {
           if (BQset[successor]) {
             if ((strategy[pos] == successor) || (msr[pos] < msr[successor] + weight[pos])) {
               count[pos] = count[pos] + 1;
@@ -212,7 +212,7 @@ namespace pg {
           E[pos] = true;
         }
       } else {
-        for (const auto& [w, successor] : nrg_game.outs (pos)) {
+        for (const auto& successor : nrg_game.outs (pos)) {
           if (!BQset[successor]) {
             if (best_succ == -1 || (ingame[successor] && msr[best_succ] > msr[successor])) {
               best_succ = successor;
@@ -284,11 +284,11 @@ namespace pg {
       pos = pair.position;
       E[pos] = false;
       oldmsr = msr[pos];
-      msr[pos] = msr[pos] + bef;
+      msr[pos] += bef;
       BQset[pos] = false;
 
       if (nrg_game.is_min (pos)) {
-        for (const auto& [w, successor] : nrg_game.outs (pos)) {
+        for (const auto& successor : nrg_game.outs (pos)) {
           if (ingame[successor] && !BQset[successor] && (msr[pos] >= msr[successor] + weight[pos])) {
             count[pos] = count[pos] + 1;
           }
@@ -297,7 +297,7 @@ namespace pg {
         strategy[pos] = newsucc[pos];
       }
 
-      for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
+      for (const auto& predecessor : nrg_game.ins (pos)) {
         if (predecessor != (int) pos && ingame[predecessor]) {
           if (BQset[predecessor]) {
             if (nrg_game.is_min (predecessor)) {
@@ -321,7 +321,7 @@ namespace pg {
               if (!E[predecessor] && count[predecessor] == 0) {
                 best_succ = -1;
 
-                for (const auto& [w, successor] : nrg_game.outs (predecessor)) {
+                for (const auto& successor : nrg_game.outs (predecessor)) {
                   if (!BQset[successor]) {
                     if (nrg_game.is_max (predecessor)) {
                       if (best_succ == -1 || msr[best_succ] < msr[successor]) {
@@ -360,10 +360,10 @@ namespace pg {
 
       for (pos = BQset.find_first (); pos < (uint) n_nodes; pos = BQset.find_next (pos)) {
         BQset[pos] = false;
-        oldmsr = msr[pos];
-        msr[pos] = nrg_game.get_infty ();
+        oldmsr = weight_t::steal (msr[pos]);
+        msr[pos] = weight_t::copy (nrg_game.get_infty ());
 
-        for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
+        for (const auto& predecessor : nrg_game.ins (pos)) {
           if (ingame[predecessor]) {
             nextpush (predecessor);
           }
@@ -375,18 +375,21 @@ namespace pg {
   void QDSolver::run () {
     ingame.set ();
 
+    oldmsr = weight_t (0);
+    bef = weight_t (0);
+
     for (pos = 0; pos < (uint) n_nodes; ++pos) {
-      msr[pos] = 0;
+      msr[pos] = weight_t (0);
       newsucc[pos] = -1;
       count[pos] = 0;
-      weight[pos] = nrg_game.some_outweight (pos);
+      weight[pos] = weight_t::proxy (nrg_game.weight (pos));
 
-      if (nrg_game.some_outweight (pos) > 0) {
+      if (nrg_game.weight (pos) > 0) {
         TAtr.push (pos);
         BAtr[pos] = true;
 
         if (nrg_game.is_max (pos)) {
-          newsucc[pos] = std::get<1> (nrg_game.outs (pos)[0]);
+          newsucc[pos] = nrg_game.outs (pos)[0];
         }
       } else {
         if (nrg_game.is_min (pos)) {

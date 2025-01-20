@@ -22,9 +22,15 @@ class movable_number {
   public:
     /// The underlying number type.
     using number_t = N;
+  private:
+    using true_t = std::true_type;
+    movable_number (const true_t&) :
+      num (allocator.construct ()),
+      owns (true) {}
 
-    movable_number () : num (allocator.construct ()) { owns = true; }
-    movable_number (const movable_number& other) : movable_number () { *num = *other; } // deep
+  public:
+    movable_number () : num (nullptr), owns (false) {}
+    movable_number (const movable_number& other) : movable_number (true_t {}) { *num = *other; } // deep
     movable_number (const movable_number& other, bool owns) : num (other.num), owns (owns) {} // shallow
     movable_number (movable_number&& other) : num (other.num) {
       owns = other.owns;
@@ -32,9 +38,9 @@ class movable_number {
     }
 
     template <typename T = N, std::enable_if_t<not std::is_integral_v<T>, bool> = true>
-    movable_number (const int64_t& src) : movable_number () { *num = src; }
-    movable_number (const number_t& src) : movable_number () { *num = src; }
-    movable_number (number_t&& src) : movable_number () { *num = std::move (src); }
+    movable_number (int64_t src) : movable_number (true_t {}) { *num = src; }
+    movable_number (const number_t& src) : movable_number (true_t {}) { *num = src; }
+    movable_number (number_t&& src) : movable_number (true_t {}) { *num = std::move (src); }
 
     /// Destructor calls destroy only when the number is owned
     ~movable_number () { if (owns) allocator.destroy (num); }

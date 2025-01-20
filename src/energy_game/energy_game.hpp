@@ -7,14 +7,33 @@ template <MovableNumber W, typename... ExtraEdgeInfo>
 class energy_game {
     size_t             nverts, nedges;
     W                  infty, minus_infty;
+    static constexpr bool     has_extra_edge_info = (sizeof... (ExtraEdgeInfo) > 0);
+
+    using neighbor_t = std::conditional<has_extra_edge_info, std::tuple<vertex_t, ExtraEdgeInfo...>, vertex_t>::type;
+
+    static constexpr auto     get_state = [] (const neighbor_t& n) {
+      if constexpr (has_extra_edge_info)
+        return std::get<0> (n);
+      else
+        return n;
+    };
+
+    static constexpr auto     make_neighbor = [] (const vertex_t& v) {
+      if constexpr (has_extra_edge_info)
+        return std::tuple_cat (std::make_tuple (v), std::tuple<ExtraEdgeInfo...> {});
+      else
+        return v;
+    };
+
   public:
     using weight_t = W;
-    using neighbors_t = std::vector<std::tuple<weight_t, vertex_t, ExtraEdgeInfo...>>;
+    using neighbors_t = std::vector<neighbor_t>;
 
   private:
     std::vector<neighbors_t> out_neighbors, in_neighbors;
     std::vector<bool>  max_owned;
     std::vector<vertex_t> max_verts, min_verts;
+    std::vector<weight_t> weights;
 
     logger_t& logger;
     int trace = 0;
@@ -28,6 +47,7 @@ class energy_game {
       minus_infty (-*infty),
       out_neighbors (nverts), in_neighbors (nverts),
       max_owned (nverts),
+      weights (nverts),
       logger (logger),
       trace (trace) {
       // Reserve.
@@ -46,18 +66,16 @@ class energy_game {
       std::map<priority_t, memoized_number> prio_to_number; // TODO: Turn into vector?
       for (size_t v = 0; v < nverts; ++v) {
         auto prio = pgame.priority (v);
-        const W& priow =
-          (prio_to_number.try_emplace (prio,
-                                       [&prio, &pgame, &swap] () -> W {
-                                         return priority_to_number<typename W::number_t> (prio, pgame, swap);
-                                       })).first->second ();
+        weights[v] =
+          weight_t::copy (
+            (prio_to_number.try_emplace (prio,
+                                         [&prio, &pgame, &swap] () -> W {
+                                           return priority_to_number<typename W::number_t> (prio, pgame, swap);
+                                         })).first->second ());
 
         for (const int* o = pgame.outedges() + pgame.firstout (v); *o != -1; ++o, ++w) {
-          W trans_w = W::copy (priow);
-          out_neighbors[v].push_back (std::tuple_cat (std::make_pair (W::steal (trans_w), *o),
-                                                      std::tuple<ExtraEdgeInfo...> {}));
-          in_neighbors[*o].push_back (std::tuple_cat (std::make_pair (W::proxy (trans_w), v),
-                                                      std::tuple<ExtraEdgeInfo...> {}));
+          out_neighbors[v].push_back (make_neighbor (*o));
+          in_neighbors[*o].push_back (make_neighbor (v));
         }
 
         max_owned[v] = (pgame.owner (v) == 0) ^ swap;
@@ -69,12 +87,9 @@ class energy_game {
     }
 
   public:
-    void add_transition (const vertex_t& v1, const W& w, const vertex_t& v2) {
-      W tw = W::copy (w);
-      out_neighbors[v1].push_back (std::tuple_cat (std::make_pair (W::steal (tw), v2),
-                                                   std::tuple<ExtraEdgeInfo...> {}));
-      in_neighbors[v2].push_back (std::tuple_cat (std::make_pair (W::proxy (tw), v1),
-                                                  std::tuple<ExtraEdgeInfo...> {}));
+    void add_transition (const vertex_t& v1, const vertex_t& v2) {
+      out_neighbors[v1].push_back (make_neighbor (v2));
+      in_neighbors[v2].push_back (make_neighbor (v1));
       //infty = max (abs (*w) * nverts, *infty); // this is being lazy, but add_transition is used only for debug.
       minus_infty = -*infty;
     }
@@ -97,45 +112,11 @@ class energy_game {
       return in_neighbors[v];
     }
 
-    template <std::invocable<typename neighbors_t::value_type&> F>
-    void update_outs (const vertex_t& v, const F& f) {
-      for (auto& o : out_neighbors[v])
-        f (o);
-    }
-
-    const W& some_outweight (const vertex_t& v) const {
-      return std::get<0> (out_neighbors[v][0]);
-    }
+    const W& weight (const vertex_t& v) const { return weights[v]; }
+    W& weight (const vertex_t& v) { return weights[v]; }
 
     size_t size() const {
       return nverts;
-    }
-
-    void isolate_vertex (const vertex_t& v) {
-      for (auto& n : out_neighbors[v]) {
-        if (std::get<1> (n) == v) continue;
-        auto& in = in_neighbors[std::get<1> (n)];
-        auto pos = std::find_if (in.begin (), in.end (),
-                                 [&v] (auto& x) { return std::get<1> (x) == v; });
-        assert (pos != in.end ());
-        std::swap (*pos, in.back ());
-        in.pop_back ();
-      }
-      out_neighbors[v].clear ();
-      for (auto& p : in_neighbors[v]) {
-        if (std::get<1> (p) == v) continue;
-        auto& out = out_neighbors[std::get<1> (p)];
-        auto pos = std::find_if (out.begin (), out.end (),
-                                 [&v] (auto& x) { return std::get<1> (x) == v; });
-        assert (pos != out.end ());
-        std::swap (*pos, out.back ());
-        out.pop_back ();
-      }
-      in_neighbors[v].clear ();
-    }
-
-    bool is_isolated (const vertex_t& v) const {
-      return out_neighbors[v].empty () and in_neighbors[v].empty ();
     }
 
     auto vertices () const {
@@ -154,6 +135,7 @@ class energy_game {
     const W& get_infty () const {
       return infty;
     }
+
     const W& get_minus_infty () const {
       return minus_infty;
     }

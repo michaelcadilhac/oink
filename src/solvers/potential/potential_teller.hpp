@@ -57,7 +57,8 @@ namespace potential {
         return undecided_verts;
       }
 
-      weight_t& get_adjusted_weight (vertex_t p, weight_t& w, vertex_t q, extra_edge_info_t& ei) {
+      weight_t& get_adjusted_weight (vertex_t p, vertex_t q, extra_edge_info_t& ei) {
+        weight_t& w = nrg_game.weight (p);
         auto& p_ts = vert_timestamps[p];
         auto& q_ts = vert_timestamps[q];
 
@@ -71,11 +72,11 @@ namespace potential {
         else  {
           if (potential[q] >= infty or potential[p] >= infty) {
             ei.timestamp = SIZE_MAX;
-            ei.adjusted_weight = infty;
+            ei.adjusted_weight = weight_t::copy (infty);
           }
           else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
             ei.timestamp = SIZE_MAX;
-            ei.adjusted_weight = minus_infty;
+            ei.adjusted_weight = weight_t::copy (minus_infty);
           }
           else {
             ei.timestamp = std::max (p_ts, q_ts) + 1;
@@ -91,7 +92,7 @@ namespace potential {
 
       std::set<vertex_t> newly_decided;
 
-      bool reduce (const potential_t& norm_pot) {
+      bool reduce () {
         ++time;
         TICK (eg_reduce);
         START_TIME (tm_reduce_update_pot);
@@ -102,17 +103,15 @@ namespace potential {
         newly_decided.clear ();
 
         for (auto&& v : undecided_verts) {
-          if (not decided[v] and norm_pot[v] != 0) {
+          if (not decided[v] and potential[v] != 0) {
             TICK (eg_pot_update);
             vert_timestamps[v] = time;
-            changed = true;
-            if (norm_pot[v] >= infty)
+            if (potential[v] >= infty)
               potential[v] = infty;
-            else if (norm_pot[v] <= minus_infty)
+            else if (potential[v] <= minus_infty)
               potential[v] = minus_infty;
-            else
-              potential[v] += norm_pot[v];
             if (potential[v] >= infty or potential[v] <= minus_infty) {
+              changed = true;
               newly_decided.insert (v);
               decided[v] = true;
             }
@@ -121,7 +120,7 @@ namespace potential {
         STOP_TIME (tm_reduce_update_pot);
         if (not changed) {
           STOP_TIME (tm_reduce);
-          // No need to update, we're done.
+          // No need to update.
           return changed;
         }
 
@@ -133,10 +132,6 @@ namespace potential {
         std::swap (result, undecided_verts);
 
         STOP_TIME (tm_reduce_set_difference);
-
-        if (undecided_verts.empty ())
-          changed = false;
-
         STOP_TIME (tm_reduce);
         return changed;
       }
@@ -145,15 +140,17 @@ namespace potential {
         return potential;
       }
 
+      weight_t& potential_of (vertex_t v) { return potential[v]; }
+
       std::ostream& print (std::ostream& os) {
         os << "digraph G {" << std::endl;
         for (auto&& v : nrg_game.vertices ()) {
           os << v << " [ shape=\"" << (nrg_game.is_max (v) ? "box" : "circle")
-             << "\", label=\"" << v << "\"";
+             << "\", label=\"" << v << "[p=" << potential[v] << "]\"";
           os << "];" << std::endl;
           for (auto&& e : nrg_game.outs (v))
-            os << v << " -> " << std::get<1> (e)
-               << " [label=\"" << get_adjusted_weight (v, std::get<0> (e), std::get<1> (e), std::get<2> (e))
+            os << v << " -> " << std::get<0> (e)
+               << " [label=\"" << get_adjusted_weight (v, std::get<0> (e), std::get<1> (e))
                << "\"];" << std::endl;
         }
         os << "}" << std::endl;

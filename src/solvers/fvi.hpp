@@ -57,14 +57,17 @@ namespace pg {
         START_TIME (tm_solving);
 
         log ("Infinity: " << nrg_game.get_infty () << std::endl);
+        bool changed = false;
         do {
           TICK (turns);
           log (teller << std::endl);
           START_TIME (compute);
-          computer.compute ();
+          changed = computer.compute ();
           STOP_TIME (compute);
           log ("Potential: " << computer << std::endl);
-        } while (teller.reduce (computer.get_potential ()));
+          if (changed)
+            teller.reduce ();
+        } while (changed);
 
         STOP_TIME (tm_solving);
 

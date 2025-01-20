@@ -48,12 +48,12 @@ namespace pg {
     improve = true;
 
     for (pos = 0; pos < n_nodes; ++pos) {
-      weight[pos] = nrg_game.some_outweight (pos);
-      update[pos] = 0;
+      weight[pos] = weight_t::proxy (nrg_game.weight (pos));
+      update[pos] = weight_t (0);
       Valuate[pos] = true;
       Initial[pos] = true;
       Top[pos] = false;
-      measure[pos] = 0;
+      measure[pos] = weight_t (0);
     }
 
     for (pos = 0; pos < n_nodes; ++pos) {
@@ -61,7 +61,7 @@ namespace pg {
         Initial[pos] = false;
         best_succ = -1;
 
-        for (const auto& [w, successor] : nrg_game.outs (pos)) {
+        for (const auto& successor : nrg_game.outs (pos)) {
           if (best_succ == -1 || weight[best_succ] > weight[successor]) {
             best_succ = successor;
           }
@@ -78,7 +78,7 @@ namespace pg {
         if (measure[pos] > 0) {
           Initial[pos] = false;
         } else {
-          for (const auto& [w, successor] : nrg_game.outs (pos)) {
+          for (const auto& successor : nrg_game.outs (pos)) {
             if (Top[successor] || measure[pos] <= measure[successor] + weight[successor]) {
               Initial[pos] = false;
             }
@@ -91,7 +91,7 @@ namespace pg {
       update[i] = 0;
       Valuate[i] = false;
 
-      for (const auto& [w, predecesor] : nrg_game.ins (i)) {
+      for (const auto& predecesor : nrg_game.ins (i)) {
         if (Valuate[predecesor] && !Bp[predecesor]) {
           Bq.push (predecesor);
           Bp[predecesor] = true;
@@ -113,7 +113,7 @@ namespace pg {
         best_succ = -1;
         weight_t best_update = -1;
 
-        for (const auto& [w, successor] : nrg_game.outs (i)) {
+        for (const auto& successor : nrg_game.outs (i)) {
           if (Valuate[successor]) {
             check = false;
           } else {
@@ -124,7 +124,7 @@ namespace pg {
               Bpp[i] = false;
               change = true;
 
-              for (const auto& [w, predecesor] : nrg_game.ins (i)) {
+              for (const auto& predecesor : nrg_game.ins (i)) {
                 if (Valuate[predecesor] && !Gp[predecesor]) {
                   Gq.push (predecesor);
                   Gp[predecesor] = true;
@@ -156,7 +156,7 @@ namespace pg {
           Bpp[i] = false;
           change = true;
 
-          for (const auto& [w, predecesor] : nrg_game.ins (i)) {
+          for (const auto& predecesor : nrg_game.ins (i)) {
             if (Valuate[predecesor] && !Gp[predecesor]) {
               Gq.push (predecesor);
               Gp[predecesor] = true;
@@ -181,7 +181,7 @@ namespace pg {
         best_succ = -1;
         weight_t best_update = -1;
 
-        for (const auto& [w, successor] : nrg_game.outs (i)) {
+        for (const auto& successor : nrg_game.outs (i)) {
           if (check && (Top[successor] || (measure[i] <= measure[successor] + weight[successor]))) {
             if (Valuate[successor]) {
               check = false;
@@ -209,7 +209,7 @@ namespace pg {
           Valuate[i] = false;
           change = true;
 
-          for (const auto& [w, predecesor] : nrg_game.ins (i)) {
+          for (const auto& predecesor : nrg_game.ins (i)) {
             if (Valuate[predecesor] && !Bp[predecesor]) {
               Bq.push (predecesor);
               Bp[predecesor] = true;
@@ -232,7 +232,7 @@ namespace pg {
 
     for (uint i = Bpp.find_first (); i < (uint) n_nodes; i = Bpp.find_next (i)) {
       if (Valuate[i]) {
-        for (const auto& [w, successor] : nrg_game.outs (i)) {
+        for (const auto& successor : nrg_game.outs (i)) {
           if (!Valuate[successor]) {
             if (best_succ == -1 || Top[best_succ] || (!Top[successor] && (best_update > update[successor] + measure[successor] + weight[successor] - measure[i]))) {
               best_min = i;
@@ -261,7 +261,7 @@ namespace pg {
       Bpp[best_min] = false;
       change = true;
 
-      for (const auto& [w, predecesor] : nrg_game.ins (best_min)) {
+      for (const auto& predecesor : nrg_game.ins (best_min)) {
         if (Valuate[predecesor] && !Gp[predecesor]) {
           Gq.push (predecesor);
           Gp[predecesor] = true;
@@ -305,7 +305,7 @@ namespace pg {
 
       if (improve) {
         for (pos = 0; pos < n_nodes; ++pos) {
-          measure[pos] = measure[pos] + update[pos];
+          measure[pos] += update[pos];
           update[pos] = 0;
 
           if (!Top[pos]) {
