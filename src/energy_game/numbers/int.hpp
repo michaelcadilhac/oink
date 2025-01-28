@@ -32,11 +32,12 @@ int64_t priority_to_number<int64_t> (const priority_t& prio,
 #ifdef GAMES_ARE_NRG
   return static_cast<int64_t> (::priority_to_number<gmp> (prio, pgame, swap));
 #else
-  int64_t base = -1 * (int64_t) pgame.nodecount ();
-  if (swap)
-    return -(pow (base, prio));
-  else
-   return pow (base, prio);
+  return static_cast<int64_t> (::priority_to_number<gmp> (prio, pgame, swap));
+  // int64_t base = -1 * (int64_t) pgame.nodecount ();
+  // if (swap)
+  //   return -(pow (base, prio));
+  // else
+  //  return pow (base, prio);
 #endif
 }
 
@@ -46,7 +47,8 @@ int64_t infinity_number<int64_t> (const pg::Game& pgame) {
 #ifdef GAMES_ARE_NRG
   return static_cast<int64_t> (::infinity_number<gmp> (pgame));
 #else
-  return pow (pgame.nodecount (), abs (pgame.priority (pgame.nodecount () - 1)) + 1);
+  return static_cast<int64_t> (::infinity_number<gmp> (pgame));
+  //return pow (pgame.nodecount () + 1, abs (pgame.priority (pgame.nodecount () - 1)) + 1) * (pgame.nodecount () + 1);
 #endif
 }
 
