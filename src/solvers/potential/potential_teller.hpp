@@ -71,11 +71,11 @@ namespace potential {
         else  {
           if (potential[q] >= infty or potential[p] >= infty) {
             ei.timestamp = SIZE_MAX;
-            ei.adjusted_weight = infty;
+            ei.adjusted_weight = weight_t::proxy_unsafe (infty);
           }
           else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
             ei.timestamp = SIZE_MAX;
-            ei.adjusted_weight = minus_infty;
+            ei.adjusted_weight = weight_t::proxy_unsafe (minus_infty);
           }
           else {
             ei.timestamp = std::max (p_ts, q_ts) + 1;
