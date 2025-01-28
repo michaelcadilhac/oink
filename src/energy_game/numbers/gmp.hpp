@@ -70,7 +70,7 @@ class gmp : public boost::multiprecision::mpz_int {
       static gmp base = 0;
       static size_t nodecount = 0;
 
-      if (nodecount != pgame.nodecount ()) {
+      if (nodecount != static_cast<size_t> (pgame.nodecount ())) {
         // TODO Clean this nonsense.
         nodecount = pgame.nodecount ();
         ssize_t t = nodecount;
