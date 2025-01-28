@@ -38,10 +38,13 @@ namespace pg {
   }
 
   void SEPMSolver::run () {
+    limit = weight_t (0);
+    oldcost = weight_t (0);
+
     for (pos = 0; pos < n_nodes; ++pos) {
-      cost[pos] = 0;
+      cost[pos] = weight_t (0);
       count[pos] = 0;
-      weight[pos] = nrg_game.some_outweight (pos);
+      weight[pos] = weight_t::proxy_unsafe (nrg_game.some_outweight (pos));
 
       if (nrg_game.some_outweight (pos) > 0) {
         TAtr.push (pos);

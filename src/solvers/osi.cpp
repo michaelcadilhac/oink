@@ -48,12 +48,12 @@ namespace pg {
     improve = true;
 
     for (pos = 0; pos < n_nodes; ++pos) {
-      weight[pos] = nrg_game.some_outweight (pos);
-      update[pos] = 0;
+      weight[pos] = weight_t::proxy_unsafe (nrg_game.some_outweight (pos));
+      update[pos] = weight_t (0);
       Valuate[pos] = true;
       Initial[pos] = true;
       Top[pos] = false;
-      measure[pos] = 0;
+      measure[pos] = weight_t (0);
     }
 
     for (pos = 0; pos < n_nodes; ++pos) {
@@ -305,7 +305,7 @@ namespace pg {
 
       if (improve) {
         for (pos = 0; pos < n_nodes; ++pos) {
-          measure[pos] = measure[pos] + update[pos];
+          measure[pos] += update[pos];
           update[pos] = 0;
 
           if (!Top[pos]) {

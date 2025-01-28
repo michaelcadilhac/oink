@@ -26,7 +26,6 @@ namespace potential {
       using neighbor_t = typename EnergyGame::neighbors_t::value_type;
       using potential_computer<EnergyGame, PotentialTeller>::nrg_game;
       using potential_computer<EnergyGame, PotentialTeller>::teller;
-      using potential_computer<EnergyGame, PotentialTeller>::potential;
       std::vector<bool> F;
       std::vector<vertex_t> strat;
       std::vector<size_t> nonneg_out_edges_to_Fc; // Nonzero entries will only
@@ -38,8 +37,6 @@ namespace potential {
         F (nrg_game.size ()),
         strat (nrg_game.size (), -1),
         nonneg_out_edges_to_Fc (nrg_game.size (), 0) {
-        for (auto& p : potential)
-          p = nrg_game.get_infty ();
       }
 
     private:
@@ -52,19 +49,20 @@ namespace potential {
       }
 
     public:
-
+#define Weight(E) std::get<0> (E)
 #define State(E) std::get<1> (E)
+#define Info(E) std::get<2> (E)
 
       std::optional<vertex_t> strategy_for (vertex_t v) {
         if ((SwapRoles ^ nrg_game.is_max (v)) and strat[v] != -1)
           return strat[v];
 
         if ((SwapRoles ^ nrg_game.is_min (v)) and
-            (SwapRoles ? teller.get_potential ()[v] > nrg_game.get_minus_infty ()
-             : teller.get_potential ()[v] < nrg_game.get_infty ()))
+            (SwapRoles ? teller.get_potential (v) > nrg_game.get_minus_infty ()
+             : teller.get_potential (v) < nrg_game.get_infty ()))
           for (auto&& o : nrg_game.outs (v))
-            if (SwapRoles ? (teller.get_potential ()[State (o)] > nrg_game.get_minus_infty () and W (v, o) >= 0)
-                : (teller.get_potential ()[State (o)] < nrg_game.get_infty () and W (v, o) <= 0))
+            if (SwapRoles ? (teller.get_potential (State (o)) > nrg_game.get_minus_infty () and W (v, o) >= 0)
+                : (teller.get_potential (State (o)) < nrg_game.get_infty () and W (v, o) <= 0))
               return State (o);
         return std::nullopt;
       }
@@ -84,25 +82,26 @@ namespace potential {
         log ("Initialization of F\n");
         // All the decided vertices are marked true, in particular.
         F.assign (nrg_game.size (), true);
-        for (auto& p : potential)
-          p = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
 
         for (auto&& v : teller.undecided_vertices ()) {
           if (SwapRoles ^ nrg_game.is_max (v))
             F[v] = std::ranges::all_of (nrg_game.outs (v), [this, &v] (auto& x) { return SwapRoles ? W (v, x) > 0 : W (v, x) < 0; });
           else
             F[v] = std::ranges::any_of (nrg_game.outs (v), [this, &v] (auto& x) { return SwapRoles ? W (v, x) > 0 : W (v, x) < 0; });
-          if (F[v]) {
-            potential[v] = zero_number (*nrg_game.get_infty ());
-            log ("Putting " << v << " in F, with pot 0.\n");
-          }
+          if (F[v])
+            log ("Putting " << v << " in F.\n");
         }
 
         std::queue<vertex_t> phase1_queue;
         auto comp = [] (const weight_t& w1, const weight_t& w2) { return SwapRoles ? w1 < w2 : w1 > w2; };
+
+        // [TODO] Maybe store two weights in the PQ, somehow, the one that is
+        // globally correct, and the one that is locally correct (that is,
+        // without -Potential[source]+original weight).
+
         auto phase2_pq = mutable_priority_queue<vertex_t, weight_t, decltype (comp)> (nrg_game.size ());
 
-        // Extract the minimal transitions going from  Fc to F.
+        // Extract the minimal transitions going from Fc to F.
         std::ranges::fill(nonneg_out_edges_to_Fc, 0);
         for (auto&& v : teller.undecided_vertices ()) {
           if (not F[v]) {
@@ -132,14 +131,20 @@ namespace potential {
          * efficiently which vertices should be added to F (i.e., when their
          * counter is zero).
          */
-        auto decrease_preds =
+        auto decrease_preds_post_change =
           [this, &phase1_queue, &phase2_pq] (vertex_t v) {
             for (auto&& i : nrg_game.ins (v)) {
-              if (not F[State (i)] and not (nrg_game.is_max (State (i)) ^ SwapRoles)) {
-                weight_t w = weight_t::copy (W (i, v));
-                w += potential[v];
-                phase2_pq.set (State (i), weight_t::steal (w), phase2_pq.only_if_higher); //!! should be steal
+              if (not F[State (i)] and (nrg_game.is_min (State (i)) ^ SwapRoles)) {
+                // weight_t w = weight_t::proxy (W (i, v));
+                // w += potential[v]; already updated, right?
+                phase2_pq.set (State (i), weight_t::proxy (W (i, v)), phase2_pq.only_if_higher);
               }
+            }
+          };
+
+        auto decrease_preds_pre_change =
+          [this, &phase1_queue, &phase2_pq] (vertex_t v) {
+            for (auto&& i : nrg_game.ins (v)) {
               if (nonneg_out_edges_to_Fc[State (i)] and (SwapRoles ? W (i, v) <= 0 : W (i, v) >= 0)) {
                 assert ((SwapRoles ^ nrg_game.is_max (State (i))) and not F[State (i)]);
                 if (--nonneg_out_edges_to_Fc[State (i)] == 0)
@@ -159,20 +164,23 @@ namespace potential {
             TICK (pot_phase1);
             vertex_t v = phase1_queue.front ();
             phase1_queue.pop ();
+            decrease_preds_pre_change (v);
             assert (not F[v] and nonneg_out_edges_to_Fc[v] == 0);
-            potential[v] = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
+            weight_t best_weight = SwapRoles ? nrg_game.get_infty () : nrg_game.get_minus_infty ();
             for (auto&& o : nrg_game.outs (v)) {
               if (teller.is_decided (State (o))) continue;
               if (SwapRoles ? W (v, o) > 0 : W (v, o) < 0) continue;
-              assert (F[State (o)]);
+              if (not F[State (o)]) // That can happen as we're updating LIVE
+                continue;
               if (SwapRoles)
-                set_if_plus_smaller (*potential[v], *W (v, o), *potential[State (o)]);
+                set_if_plus_smaller (*best_weight, *Weight (o), *teller.get_potential (State (o)));
               else
-                set_if_plus_larger (*potential[v], *W (v, o), *potential[State (o)]);
+                set_if_plus_larger (*best_weight, *Weight (o), *teller.get_potential (State (o)));
             }
-            log ("Putting " << v << " in F with pot " << potential[v] << std::endl);
+            teller.set_potential (v, std::move (best_weight));
+            log ("Putting " << v << " in F, now with pot " << *teller.get_potential (v) << "\n");
             F[v] = true;
-            decrease_preds (v);
+            decrease_preds_post_change (v);
           }
 
           /* 2. Otherwise, let vv' be an edge from VMin \ F to F (it is
@@ -187,13 +195,14 @@ namespace potential {
           while (not phase2_pq.empty ()) {
             TICK (pot_phase2);
             auto from = phase2_pq.top ().key;
-            auto weight = weight_t::steal_or_proxy (const_cast<weight_t&> (phase2_pq.top ().priority));
+            auto weight = weight_t::proxy (const_cast<weight_t&> (phase2_pq.top ().priority));
             phase2_pq.pop ();
             if (F[from]) continue;
-            potential[from] = weight_t::steal_or_copy (weight);
+            decrease_preds_pre_change (from);
+            teller.inc_potential (from, weight);
+            decrease_preds_post_change (from);
             F[from] = true;
-            log ("Putting " << from << " in F with pot " << potential[from] << std::endl);
-            decrease_preds (from);
+            log ("Putting " << from << " in F, now with pot " << *teller.get_potential (from) << "\n");
             change = true;
             break;
           }
@@ -211,13 +220,14 @@ namespace potential {
         to_backtrack.clear ();
         for (auto&& v : teller.undecided_vertices ()) {
           if (F[v]) continue;
-          to_backtrack.push_back (v);
           if ((SwapRoles ^ nrg_game.is_max (v)) and strat[v] == -1) // Find a strategy
             for (auto&& o : nrg_game.outs (v))
               if (not F[State (o)] and (SwapRoles ? W (v, o) <= 0 : W (v, o) >= 0)) {
                 strat[v] = State (o);
                 break;
               }
+          teller.set_potential (v, weight_t::proxy_unsafe (SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ()));
+          to_backtrack.push_back (v);
         }
 
         // This is reused to save a bit of memory.  It will be used for player
@@ -235,7 +245,7 @@ namespace potential {
               continue;
             if (SwapRoles ^ nrg_game.is_max (i)) {
               F[i] = false;
-              potential[i] = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
+              teller.set_potential (i, weight_t::proxy_unsafe (SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ()));
               strat[i] = v;
               to_backtrack.push_back (i);
             }
@@ -244,7 +254,7 @@ namespace potential {
                 out_edges_in_F[i] = nrg_game.outs (i).size ();
               if (--out_edges_in_F[i] == 0) { // All of its succ are out of F
                 F[i] = false;
-                potential[i] = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
+                teller.set_potential (i, weight_t::proxy_unsafe (SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ()));
                 to_backtrack.push_back (i);
               }
             }

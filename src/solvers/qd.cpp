@@ -87,7 +87,7 @@ namespace pg {
         msr[pos] = msr[best_succ] + weight[pos];
       } else {
         ingame[pos] = false;
-        msr[pos] = nrg_game.get_infty ();
+        msr[pos] = weight_t::copy (nrg_game.get_infty ());
       }
 
       for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
@@ -284,7 +284,7 @@ namespace pg {
       pos = pair.position;
       E[pos] = false;
       oldmsr = msr[pos];
-      msr[pos] = msr[pos] + bef;
+      msr[pos] += bef;
       BQset[pos] = false;
 
       if (nrg_game.is_min (pos)) {
@@ -360,8 +360,8 @@ namespace pg {
 
       for (pos = BQset.find_first (); pos < (uint) n_nodes; pos = BQset.find_next (pos)) {
         BQset[pos] = false;
-        oldmsr = msr[pos];
-        msr[pos] = nrg_game.get_infty ();
+        oldmsr = weight_t::steal (msr[pos]);
+        msr[pos] = weight_t::copy (nrg_game.get_infty ());
 
         for (const auto& [w, predecessor] : nrg_game.ins (pos)) {
           if (ingame[predecessor]) {
@@ -375,11 +375,14 @@ namespace pg {
   void QDSolver::run () {
     ingame.set ();
 
+    oldmsr = weight_t (0);
+    bef = weight_t (0);
+
     for (pos = 0; pos < (uint) n_nodes; ++pos) {
-      msr[pos] = 0;
+      msr[pos] = weight_t (0);
       newsucc[pos] = -1;
       count[pos] = 0;
-      weight[pos] = nrg_game.some_outweight (pos);
+      weight[pos] = weight_t::proxy_unsafe (nrg_game.some_outweight (pos));
 
       if (nrg_game.some_outweight (pos) > 0) {
         TAtr.push (pos);

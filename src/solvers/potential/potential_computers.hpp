@@ -8,7 +8,6 @@ namespace potential {
       using potential_t = std::vector<weight_t>;
       EnergyGame&              nrg_game;
       PotentialTeller&         teller;
-      potential_t              potential;
 
       logger_t& logger;
       int trace = 0;
@@ -17,26 +16,13 @@ namespace potential {
                           PotentialTeller& teller,
                           logger_t& logger, int trace) :
         nrg_game (ngame), teller (teller), logger (logger), trace (trace) {
-        potential.reserve (nrg_game.size ());
-        for (size_t i = 0; i < nrg_game.size (); ++i)
-          potential.push_back (zero_number (*nrg_game.get_infty ()));
-      }
-
-      virtual const potential_t& get_potential () const {
-        return potential;
       }
 
       virtual void compute () = 0;
   };
 
   template <typename EG, typename PT>
-  std::ostream& operator<< (std::ostream& os, const potential_computer<EG, PT>& pc) {
-    size_t i = 0;
-    os << "[ ";
-    for (auto&& elt : pc.get_potential ())
-      os << i++ << "->" << elt << " ";
-    os << "]";
-
+  std::ostream& operator<< (std::ostream& os, const potential_computer<EG, PT>&) {
     return os;
   }
 }
