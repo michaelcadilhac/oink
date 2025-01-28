@@ -5,13 +5,16 @@ namespace potential {
             typename EnergyGame, typename PotentialTeller>
   class potential_fvi_alt_gen : public potential_computer<EnergyGame, PotentialTeller> {
     private:
+      PotentialTeller&                                 teller;
       SwapComputer<false, EnergyGame, PotentialTeller> computer;
       SwapComputer<true, EnergyGame, PotentialTeller>  computer_swap;
       bool swap = true;
     public:
       potential_fvi_alt_gen (EnergyGame& game, PotentialTeller& teller, logger_t& logger, int trace) :
         potential_computer<EnergyGame, PotentialTeller> (game, teller, logger, trace),
-        computer (game, teller, logger, trace), computer_swap (game, teller, logger, trace) {}
+        teller (teller),
+        computer (game, teller, logger, trace),
+        computer_swap (game, teller, logger, trace) {}
 
 
       std::optional<vertex_t> strategy_for (vertex_t v) {
@@ -21,16 +24,15 @@ namespace potential {
           return computer.strategy_for (v);
       }
 
-      bool compute () {
-        bool change;
+      void compute () {
         swap ^= true;
         if (swap)
-          change = computer_swap.compute ();
+          computer_swap.compute ();
         else
-          change = computer.compute ();
+          computer.compute ();
 
-        if (change)
-          return true;
+        if (teller.has_changed ())
+          return;
 
         // Do one more round of the other fvi and be done.
         swap ^= true;
@@ -38,8 +40,6 @@ namespace potential {
           computer_swap.compute ();
         else
           computer.compute ();
-
-        return false; // We're done
       }
   };
 

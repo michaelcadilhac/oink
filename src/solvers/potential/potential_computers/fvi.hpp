@@ -58,18 +58,17 @@ namespace potential {
           return strat[v];
 
         if ((SwapRoles ^ nrg_game.is_min (v)) and
-            (SwapRoles ? teller.get_potential ()[v] > nrg_game.get_minus_infty ()
-             : teller.get_potential ()[v] < nrg_game.get_infty ()))
+            (SwapRoles ? teller.get_potential (v) > nrg_game.get_minus_infty ()
+             : teller.get_potential (v) < nrg_game.get_infty ()))
           for (auto&& o : nrg_game.outs (v))
-            if (SwapRoles ? (teller.get_potential ()[State (o)] > nrg_game.get_minus_infty () and W (v, o) >= 0)
-                : (teller.get_potential ()[State (o)] < nrg_game.get_infty () and W (v, o) <= 0))
+            if (SwapRoles ? (teller.get_potential (State (o)) > nrg_game.get_minus_infty () and W (v, o) >= 0)
+                : (teller.get_potential (State (o)) < nrg_game.get_infty () and W (v, o) <= 0))
               return State (o);
         return std::nullopt;
       }
 
       std::vector<vertex_t> to_backtrack;
-      bool compute () {
-        bool potential_change = false;
+      void compute () {
 
         TICK (pot_compute);
 
@@ -174,14 +173,13 @@ namespace potential {
               if (SwapRoles ? W (v, o) > 0 : W (v, o) < 0) continue;
               if (not F[State (o)]) // That can happen as we're updating LIVE
                 continue;
-              if ((best_weight < teller.potential_of (State (o))) xor SwapRoles)
-                best_weight = weight_t::proxy (teller.potential_of (State (o)));
+              if ((best_weight < teller.get_potential (State (o))) xor SwapRoles)
+                best_weight = weight_t::proxy_unsafe (teller.get_potential (State (o)));
             }
-            weight_t old_potential = weight_t::copy (teller.potential_of (v));
-            teller.potential_of (v) = best_weight;
-            teller.potential_of (v) += nrg_game.weight (v);
-            if (old_potential != teller.potential_of (v))
-              potential_change = true;
+            best_weight = weight_t::copy (best_weight); // Careful here; we need a copy.
+            best_weight += nrg_game.weight (v);
+            teller.set_potential (v, std::move (best_weight));
+            decrease_preds_post_change (v);
             // Arete v -> o
 
             // potential[v] = poids originel de l'arete W(v, o) + Potential[o] - Potential[v]
@@ -191,9 +189,8 @@ namespace potential {
             // Potential[v] += poids originel (v, o) + Potential[o] - Potential[v]
             // Potential[v]  = poids originel (v, o) + Potential[o]
 
-            log ("Putting " << v << " in F, now with pot " << *teller.potential_of (v) << "\n");
+            log ("Putting " << v << " in F, now with pot " << *teller.get_potential (v) << "\n");
             F[v] = true;
-            decrease_preds_post_change (v);
           }
 
           /* 2. Otherwise, let vv' be an edge from VMin \ F to F (it is
@@ -210,16 +207,12 @@ namespace potential {
             auto from = phase2_pq.top ().key;
             auto weight = weight_t::proxy (const_cast<weight_t&> (phase2_pq.top ().priority));
             phase2_pq.pop ();
-            decrease_preds_pre_change (from);
             if (F[from]) continue;
-            //
-            if (weight != 0) {
-              potential_change = true;
-              teller.potential_of (from) += weight;
-            }
-            F[from] = true;
-            log ("Putting " << from << " in F, now with pot " << *teller.potential_of (from) << "\n");
+            decrease_preds_pre_change (from);
+            teller.inc_potential (from, weight);
             decrease_preds_post_change (from);
+            F[from] = true;
+            log ("Putting " << from << " in F, now with pot " << *teller.get_potential (from) << "\n");
             change = true;
             break;
           }
@@ -237,15 +230,14 @@ namespace potential {
         to_backtrack.clear ();
         for (auto&& v : teller.undecided_vertices ()) {
           if (F[v]) continue;
-          teller.potential_of (v) = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
-          potential_change = true;
-          to_backtrack.push_back (v);
           if ((SwapRoles ^ nrg_game.is_max (v)) and strat[v] == -1) // Find a strategy
             for (auto&& o : nrg_game.outs (v))
               if (not F[State (o)] and (SwapRoles ? W (v, o) <= 0 : W (v, o) >= 0)) {
                 strat[v] = State (o);
                 break;
               }
+          teller.set_potential (v, weight_t::proxy_unsafe (SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ()));
+          to_backtrack.push_back (v);
         }
 
         // This is reused to save a bit of memory.  It will be used for player
@@ -263,8 +255,7 @@ namespace potential {
               continue;
             if (SwapRoles ^ nrg_game.is_max (i)) {
               F[i] = false;
-              teller.potential_of (i) = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
-              potential_change = true;
+              teller.set_potential (i, weight_t::proxy_unsafe (SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ()));
               strat[i] = v;
               to_backtrack.push_back (i);
             }
@@ -273,8 +264,7 @@ namespace potential {
                 out_edges_in_F[i] = nrg_game.outs (i).size ();
               if (--out_edges_in_F[i] == 0) { // All of its succ are out of F
                 F[i] = false;
-                teller.potential_of (i) = SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ();
-                potential_change = true;
+                teller.set_potential (i, weight_t::proxy_unsafe (SwapRoles ? nrg_game.get_minus_infty () : nrg_game.get_infty ()));
                 to_backtrack.push_back (i);
               }
             }
@@ -285,8 +275,6 @@ namespace potential {
         for (auto x : F)
           log (" " << x);
         log ("\n");
-
-        return potential_change;
       }
   };
 

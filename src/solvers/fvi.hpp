@@ -57,27 +57,24 @@ namespace pg {
         START_TIME (tm_solving);
 
         log ("Infinity: " << nrg_game.get_infty () << std::endl);
-        bool changed = false;
+
         do {
           TICK (turns);
           log (teller << std::endl);
           START_TIME (compute);
-          changed = computer.compute ();
+          computer.compute ();
           STOP_TIME (compute);
           log ("Potential: " << computer << std::endl);
-          if (changed)
-            teller.reduce ();
-        } while (changed);
+        } while (teller.reduce ());
 
         STOP_TIME (tm_solving);
 
         log_stat ("solving: " << GET_TIME (tm_solving) << "\n");
 
-        auto&& pot = teller.get_potential ();
         for (auto&& v : nrg_game.vertices ()) {
           if (game.isSolved (v)) continue;
           log ("vertex " << v << (nrg_game.is_max (v) ? " (max) " : " (min) "));
-          log (" potential " << pot[v]);
+          log (" potential " << *teller.get_potential (v));
           if (auto strat = computer.strategy_for (v)) {
             log (" take (" << v << ", " << *strat << ")\n");
             Solver::solve (v, not nrg_game.is_max (v), *strat);

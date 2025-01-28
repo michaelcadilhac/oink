@@ -28,10 +28,12 @@ namespace potential {
 
     private:
       EnergyGame& nrg_game;
-      const weight_t& infty, minus_infty;
+      const weight_t infty, minus_infty;
       std::vector<bool>  decided;
 
       potential_t potential;
+      bool changed;
+
       std::set<vertex_t> undecided_verts;
 
       std::vector<size_t> vert_timestamps;
@@ -40,11 +42,13 @@ namespace potential {
     public:
 
       potential_teller (EnergyGame& ngame) : nrg_game { ngame },
-                                             infty { ngame.get_infty () },
-                                             minus_infty { ngame.get_minus_infty () },
+                                             infty { weight_t::proxy_unsafe (ngame.get_infty ()) },
+                                             minus_infty { weight_t::proxy_unsafe (ngame.get_minus_infty ()) },
                                              decided (ngame.size ()),
+                                             changed (false),
                                              vert_timestamps (ngame.size ()),
-                                             time (1) {
+                                             time (2) // time 1 is for initialization
+      {
         potential.reserve (nrg_game.size ());
         for (size_t i = 0; i < nrg_game.size (); ++i)
           potential.push_back (zero_number<typename weight_t::number_t> (*infty));
@@ -72,11 +76,11 @@ namespace potential {
         else  {
           if (potential[q] >= infty or potential[p] >= infty) {
             ei.timestamp = SIZE_MAX;
-            ei.adjusted_weight = weight_t::copy (infty);
+            ei.adjusted_weight = weight_t::proxy_unsafe (infty);
           }
           else if (potential[q] <= minus_infty or potential[p] <= minus_infty) {
             ei.timestamp = SIZE_MAX;
-            ei.adjusted_weight = weight_t::copy (minus_infty);
+            ei.adjusted_weight = weight_t::proxy_unsafe (minus_infty);
           }
           else {
             ei.timestamp = std::max (p_ts, q_ts) + 1;
@@ -93,36 +97,15 @@ namespace potential {
       std::set<vertex_t> newly_decided;
 
       bool reduce () {
-        ++time;
+        if (not changed)
+          // No need to update, we're done.
+          return false;
+
         TICK (eg_reduce);
-        START_TIME (tm_reduce_update_pot);
         START_TIME (tm_reduce);
 
-        bool changed = false;
-
-        newly_decided.clear ();
-
-        for (auto&& v : undecided_verts) {
-          if (not decided[v] and potential[v] != 0) {
-            TICK (eg_pot_update);
-            vert_timestamps[v] = time;
-            if (potential[v] >= infty)
-              potential[v] = infty;
-            else if (potential[v] <= minus_infty)
-              potential[v] = minus_infty;
-            if (potential[v] >= infty or potential[v] <= minus_infty) {
-              changed = true;
-              newly_decided.insert (v);
-              decided[v] = true;
-            }
-          }
-        }
-        STOP_TIME (tm_reduce_update_pot);
-        if (not changed) {
-          STOP_TIME (tm_reduce);
-          // No need to update.
-          return changed;
-        }
+        for (auto&& v : newly_decided)
+          decided[v] = true;
 
         START_TIME (tm_reduce_set_difference);
         std::set<vertex_t> result;
@@ -131,16 +114,51 @@ namespace potential {
                              std::inserter (result, result.end()));
         std::swap (result, undecided_verts);
 
+
         STOP_TIME (tm_reduce_set_difference);
+
+        // Reset everything
+        newly_decided.clear ();
+        changed = false;
+
         STOP_TIME (tm_reduce);
-        return changed;
+        return true;
+      }
+      const weight_t& get_potential (vertex_t v) const {
+        return potential[v];
       }
 
-      const potential_t& get_potential () const {
-        return potential;
+    private:
+
+      void potential_changed (vertex_t v) {
+        vert_timestamps[v] = ++time;
+        changed = true;
+        if (potential[v] >= infty)
+          potential[v] = weight_t::copy (infty);
+        else if (potential[v] <= minus_infty)
+          potential[v] = weight_t::copy (minus_infty);
+        if (potential[v] >= infty or potential[v] <= minus_infty)
+          newly_decided.insert (v);
       }
 
-      weight_t& potential_of (vertex_t v) { return potential[v]; }
+    public:
+
+      bool has_changed () const { return changed; }
+
+      void set_potential (vertex_t v, weight_t&& w) {
+        if (potential[v] != w) {
+          potential[v] = std::move (w);
+          potential_changed (v);
+        }
+      }
+
+      void inc_potential (vertex_t v, const weight_t& w) {
+        if (w != 0) {
+          assert (potential[v].is_owning ());
+          potential[v] += w;
+          potential_changed (v);
+        }
+      }
 
       std::ostream& print (std::ostream& os) {
         os << "digraph G {" << std::endl;

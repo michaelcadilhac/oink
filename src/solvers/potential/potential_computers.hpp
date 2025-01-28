@@ -18,11 +18,11 @@ namespace potential {
         nrg_game (ngame), teller (teller), logger (logger), trace (trace) {
       }
 
-      virtual bool compute () = 0;
+      virtual void compute () = 0;
   };
 
   template <typename EG, typename PT>
-  std::ostream& operator<< (std::ostream& os, const potential_computer<EG, PT>& pc) {
+  std::ostream& operator<< (std::ostream& os, const potential_computer<EG, PT>&) {
     return os;
   }
 }
