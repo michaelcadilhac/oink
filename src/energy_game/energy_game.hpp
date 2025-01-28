@@ -147,7 +147,7 @@ class energy_game {
            << "\", label=\"" << v << "\"";
         os << "];" << std::endl;
         for (auto&& e : out_neighbors[v])
-          os << v << " -> " << std::get<1> (e) << " [label=\"" << std::get<0> (e) << "\"];" << std::endl;
+          os << v << " -> " << std::get<0> (e) << " [label=\"" << std::get<1> (e) << "\"];" << std::endl;
       }
       os << "}" << std::endl;
       return os;
