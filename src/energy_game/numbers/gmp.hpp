@@ -67,22 +67,19 @@ class gmp : public boost::multiprecision::mpz_int {
       return (pgame.nodecount () + 1) * prio + 1;
 #else
 
-      // TODO Clean this nonsense.
-      ssize_t t = pgame.nodecount ();
-      ssize_t sbase = 1;
-      while (t != 0) {
-        t >>= 1;
-        sbase <<= 1;
-      }
+      static gmp base = 0;
+      static size_t nodecount = 0;
 
-      static gmp base = -1 * sbase,
-        fact = pgame.nodecount () + 1;
-      static const pg::Game* ppgame = &pgame;
-
-      if (&pgame != ppgame) {
-        base = -1 * (ssize_t) pgame.nodecount (),
-          fact = pgame.nodecount () + 1;
-        ppgame = &pgame;
+      if (nodecount != pgame.nodecount ()) {
+        // TODO Clean this nonsense.
+        nodecount = pgame.nodecount ();
+        ssize_t t = nodecount;
+        ssize_t sbase = 1;
+        while (t != 0) {
+          t >>= 1;
+          sbase <<= 1;
+        }
+        base = -1 * sbase;
       }
 
       if (swap)
