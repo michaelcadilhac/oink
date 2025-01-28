@@ -31,9 +31,16 @@ class movable_number {
   public:
     movable_number () : num (nullptr), owns (false) {}
     movable_number (const movable_number& other) : movable_number (true_t {}) { *num = *other; } // deep
-    movable_number (const movable_number& other, bool owns) : num (other.num), owns (owns) {} // shallow
-    movable_number (movable_number&& other) : num (other.num) {
-      owns = other.owns;
+    movable_number (const movable_number& other, bool owns) // shallow
+      : num (other.num), owns (owns) {
+#ifndef NDEBUG
+      is_const = other.is_const;
+#endif
+    }
+    movable_number (movable_number&& other) : num (other.num), owns (other.owns) {
+#ifndef NDEBUG
+      is_const = other.is_const;
+#endif
       other.owns = false;
     }
 
@@ -45,6 +52,8 @@ class movable_number {
     /// Destructor calls destroy only when the number is owned
     ~movable_number () { if (owns) allocator.destroy (num); }
 
+    bool is_owning () const { return owns; }
+
     /// Makes a deep copy of the number.
     /// The returned \a movable_number owns its number.
     static movable_number copy (const movable_number& other) { return movable_number (other); }
@@ -52,6 +61,18 @@ class movable_number {
     /// Makes a proxy of another movable number.
     /// The returned \a movable_number does not own its number.
     static movable_number proxy (movable_number& other) { return movable_number (other, false); }
+
+    /// Makes a proxy of another movable number.
+    /// The returned \a movable_number does not own its number.
+    /// This discards constness, in the sense that if the \a movable_number is
+    /// assigned another value, then \a other will have that value, too.
+    static movable_number proxy_unsafe (const movable_number& other) {
+      auto ret = movable_number (other, false);
+#ifndef NDEBUG
+      ret.is_const = true;
+#endif
+      return ret;
+    }
 
     /// Steals ownership from another movable number, which *must* be owned.
     /// If the other number did not own, an assertion is triggered.
@@ -93,6 +114,9 @@ class movable_number {
     movable_number& operator= (movable_number&& other) {
       if (owns and num != other.num)
         allocator.destroy (num);
+#ifndef NDEBUG
+      is_const = other.is_const;
+#endif
       num = other.num;
       owns = other.owns;
       other.owns = false;
@@ -101,6 +125,9 @@ class movable_number {
 
     /// Sets the current number to another value.  No change to ownership, no destroying.
     movable_number& operator= (const movable_number& other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
       *num = *other;
       return *this;
     }
@@ -108,11 +135,17 @@ class movable_number {
     template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
     operator= (int64_t other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
       *num = other;
       return *this;
     }
 
     movable_number& operator= (const number_t& other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
       *num = other;
       return *this;
     }
@@ -120,11 +153,11 @@ class movable_number {
 
     ///@{
     /** Operators delegated to \a get. */
-    bool operator== (const movable_number& other) const { return *num == *other; }
+    bool operator== (const movable_number& other) const { return num == other.num or *num == *other; }
     bool operator<  (const movable_number& other) const { return *num < *other; }
-    bool operator<= (const movable_number& other) const { return *num <= *other; }
+    bool operator<= (const movable_number& other) const { return num == other.num or *num <= *other; }
     bool operator>  (const movable_number& other) const { return *num > *other; }
-    bool operator>= (const movable_number& other) const { return *num >= *other; }
+    bool operator>= (const movable_number& other) const { return num == other.num or *num >= *other; }
 
     template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, bool>
@@ -142,22 +175,63 @@ class movable_number {
     typename std::enable_if_t<not std::is_integral_v<T>, bool>
     operator>= (int64_t other) const { return *num >= other; }
 
-    bool operator== (const number_t& other) const { return *num == other; }
+    bool operator== (const number_t& other) const { return num == &other or *num == other; }
     bool operator<  (const number_t& other) const { return *num < other; }
-    bool operator<= (const number_t& other) const { return *num <= other; }
+    bool operator<= (const number_t& other) const { return num == &other or *num <= other; }
     bool operator>  (const number_t& other) const { return *num > other; }
-    bool operator>= (const number_t& other) const { return *num >= other; }
+    bool operator>= (const number_t& other) const { return num == &other or *num >= other; }
 
-    movable_number& operator+= (const movable_number& other)   { *num += *other; return *this; }
+    movable_number& operator+= (const movable_number& other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
+      *num += *other;
+      return *this;
+    }
+
     template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
-    operator+= (int64_t other)         { *num += other; return *this; }
-    movable_number& operator+= (const number_t& other) { *num += other; return *this; }
-    movable_number& operator-= (const movable_number& other)   { *num -= *other; return *this; }
+    operator+= (int64_t other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
+      *num += other;
+      return *this;
+    }
+
+    movable_number& operator+= (const number_t& other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
+      *num += other;
+      return *this;
+    }
+
+    movable_number& operator-= (const movable_number& other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
+      *num -= *other;
+      return *this;
+    }
+
     template <typename T = N>
     typename std::enable_if_t<not std::is_integral_v<T>, movable_number&>
-    operator-= (int64_t other)         { *num -= other; return *this; }
-    movable_number& operator-= (const number_t& other) { *num -= other; return *this; }
+    operator-= (int64_t other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
+      *num -= other;
+      return *this;
+    }
+
+    movable_number& operator-= (const number_t& other) {
+#ifndef NDEBUG
+      assert (not is_const);
+#endif
+      *num -= other;
+      return *this;
+    }
 
     movable_number operator+ (const movable_number& other) const {
       movable_number ret (*this);
@@ -180,6 +254,12 @@ class movable_number {
 
     /// Indicates whether the \a movable_number owns its number.
     bool owns = true;
+
+#ifndef NDEBUG
+    /// Indicates whether it is a const proxy; only used in \a proxy_unsafe.
+    bool is_const = false;
+#endif
+
 };
 
 template <typename T>
